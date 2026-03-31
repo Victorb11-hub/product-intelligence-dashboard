@@ -60,7 +60,7 @@ export default function Alerts() {
   if (loading) return <LoadingSpinner message="Loading alerts..." />
 
   return (
-    <div className="p-6 flex gap-6">
+    <div className="p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6">
       {/* Alert Feed */}
       <div className="flex-1">
         <div className="mb-6">
@@ -112,7 +112,7 @@ export default function Alerts() {
 
       {/* Action Side Panel */}
       {selectedAlert && (
-        <div className="w-80 shrink-0">
+        <div className="w-full md:w-80 md:shrink-0">
           <div className="sticky top-6 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
             <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3">Alert Details</h3>
 

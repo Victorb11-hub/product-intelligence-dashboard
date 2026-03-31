@@ -47,7 +47,7 @@ export default function Competitors() {
   if (loading) return <LoadingSpinner message="Loading competitors..." />
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Competitor Tracker</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{filtered.length} competitor products</p>

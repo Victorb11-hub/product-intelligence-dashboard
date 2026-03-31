@@ -15,7 +15,7 @@ export default function PostsComments() {
   const [activeTab, setActiveTab] = useState('posts')
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Posts & Comments</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Raw scraped content with intent and sentiment scoring</p>
@@ -137,7 +137,7 @@ function PostsTab() {
   return (
     <div>
       {/* Summary cards */}
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-5">
         {[
           { label: 'Total Posts', value: totalPosts },
           { label: 'Avg Sentiment', value: avgSentiment.toFixed(3) },
@@ -392,7 +392,7 @@ function CommentsTab() {
   return (
     <div>
       {/* Summary */}
-      <div className="grid grid-cols-5 gap-4 mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-5">
         {[
           { label: 'Total Comments', value: filtered.length },
           { label: 'High Intent (L4+5)', value: highIntent },

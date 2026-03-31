@@ -9,19 +9,22 @@ import ProductsScheduling from './views/ProductsScheduling.jsx'
 import PostsComments from './views/PostsComments.jsx'
 
 const navItems = [
-  { to: '/leaderboard', label: 'Leaderboard', icon: '📊' },
-  { to: '/posts', label: 'Posts & Comments', icon: '💬' },
-  { to: '/competitors', label: 'Competitors', icon: '🏪' },
+  { to: '/leaderboard', label: 'Board', icon: '📊' },
+  { to: '/posts', label: 'Posts', icon: '💬' },
   { to: '/alerts', label: 'Alerts', icon: '🔔' },
-  { to: '/sourcing', label: 'Sourcing', icon: '📦' },
-  { to: '/agents', label: 'Products & Agents', icon: '🤖' },
+  { to: '/sourcing', label: 'Source', icon: '📦' },
+  { to: '/agents', label: 'Agents', icon: '🤖' },
+]
+
+const desktopOnlyNav = [
+  { to: '/competitors', label: 'Competitors', icon: '🏪' },
 ]
 
 function Sidebar() {
   const { dark, toggle } = useTheme()
 
   return (
-    <aside className="w-64 shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col h-screen sticky top-0">
+    <aside className="hidden md:flex w-64 shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex-col h-screen sticky top-0">
       <div className="p-5 border-b border-gray-200 dark:border-gray-700">
         <h1 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight">
           Product Intelligence
@@ -30,7 +33,7 @@ function Sidebar() {
       </div>
 
       <nav className="flex-1 p-3 space-y-1">
-        {navItems.map(({ to, label, icon }) => (
+        {[...navItems, ...desktopOnlyNav].map(({ to, label, icon }) => (
           <NavLink
             key={to}
             to={to}
@@ -61,11 +64,34 @@ function Sidebar() {
   )
 }
 
+function MobileTabBar() {
+  return (
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex justify-around items-center h-14 safe-area-bottom">
+      {navItems.map(({ to, label, icon }) => (
+        <NavLink
+          key={to}
+          to={to}
+          className={({ isActive }) =>
+            `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 text-[11px] font-medium transition-colors ${
+              isActive
+                ? 'text-indigo-600 dark:text-indigo-400'
+                : 'text-gray-500 dark:text-gray-400'
+            }`
+          }
+        >
+          <span className="text-lg leading-none">{icon}</span>
+          {label}
+        </NavLink>
+      ))}
+    </nav>
+  )
+}
+
 export default function App() {
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
       <Sidebar />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto pb-16 md:pb-0">
         <Routes>
           <Route path="/" element={<Navigate to="/leaderboard" replace />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
@@ -77,6 +103,7 @@ export default function App() {
           <Route path="/posts" element={<PostsComments />} />
         </Routes>
       </main>
+      <MobileTabBar />
     </div>
   )
 }
