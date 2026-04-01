@@ -108,27 +108,36 @@ export default function Leaderboard() {
         <>
           {/* Mobile: card view */}
           <div className="md:hidden space-y-3">
-            {filtered.map(product => (
-              <div
-                key={product.id}
-                onClick={() => navigate(`/product/${product.id}`)}
-                className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 cursor-pointer active:bg-indigo-50 dark:active:bg-indigo-900/10"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-[15px] text-gray-900 dark:text-white">{product.name}</span>
-                    {product.fad_flag && <span className="px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-[11px] rounded font-medium">FAD</span>}
+            {filtered.map(product => {
+              const aj = product.active_jobs || 0
+              const tj = product.total_jobs || 4
+              const covPct = product.coverage_pct || 0
+              return (
+                <div
+                  key={product.id}
+                  onClick={() => navigate(`/product/${product.id}`)}
+                  className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 cursor-pointer active:bg-indigo-50 dark:active:bg-indigo-900/10"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-[15px] text-gray-900 dark:text-white">{product.name}</span>
+                      {product.fad_flag && <span className="px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-[11px] rounded font-medium">FAD</span>}
+                    </div>
+                    <VerdictBadge verdict={product.current_verdict} />
                   </div>
-                  <VerdictBadge verdict={product.current_verdict} />
+                  <div className="mb-1"><ScoreBar score={product.current_score} size="lg" /></div>
+                  {product.raw_score > 0 && product.raw_score !== product.current_score && (
+                    <p className="text-[11px] text-gray-400 mb-1 tabular-nums">Raw: {product.raw_score?.toFixed(1)}</p>
+                  )}
+                  <CoverageBar active={aj} total={tj} pct={covPct} />
+                  <div className="flex items-center justify-between text-[13px] text-gray-500 dark:text-gray-400 mt-2">
+                    <span>{product.category}</span>
+                    <span className="capitalize">{product.lifecycle_phase.replace('_', ' ')}</span>
+                    <span>{daysSince(product.first_seen_date)}d</span>
+                  </div>
                 </div>
-                <div className="mb-2"><ScoreBar score={product.current_score} size="lg" /></div>
-                <div className="flex items-center justify-between text-[13px] text-gray-500 dark:text-gray-400">
-                  <span>{product.category}</span>
-                  <span className="capitalize">{product.lifecycle_phase.replace('_', ' ')}</span>
-                  <span>{daysSince(product.first_seen_date)}d tracked</span>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Desktop: table view */}
@@ -138,46 +147,52 @@ export default function Leaderboard() {
                 <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                   <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Product</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Category</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 w-48">Score</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 w-52">Score</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Verdict</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 w-36">Coverage</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Phase</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Change</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Days</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Confidence</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(product => (
-                  <tr
-                    key={product.id}
-                    onClick={() => navigate(`/product/${product.id}`)}
-                    className="border-b border-gray-100 dark:border-gray-800 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10 cursor-pointer transition-colors"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900 dark:text-white">{product.name}</span>
-                        {product.fad_flag && (
-                          <span className="px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs rounded font-medium">FAD</span>
+                {filtered.map(product => {
+                  const aj = product.active_jobs || 0
+                  const tj = product.total_jobs || 4
+                  const covPct = product.coverage_pct || 0
+                  return (
+                    <tr
+                      key={product.id}
+                      onClick={() => navigate(`/product/${product.id}`)}
+                      className="border-b border-gray-100 dark:border-gray-800 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10 cursor-pointer transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900 dark:text-white">{product.name}</span>
+                          {product.fad_flag && (
+                            <span className="px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs rounded font-medium">FAD</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{product.category}</td>
+                      <td className="px-4 py-3">
+                        <ScoreBar score={product.current_score} />
+                        {product.raw_score > 0 && product.raw_score !== product.current_score && (
+                          <p className="text-[11px] text-gray-400 mt-0.5 tabular-nums">Raw: {product.raw_score?.toFixed(1)}</p>
                         )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{product.category}</td>
-                    <td className="px-4 py-3"><ScoreBar score={product.current_score} /></td>
-                    <td className="px-4 py-3"><VerdictBadge verdict={product.current_verdict} /></td>
-                    <td className="px-4 py-3">
-                      <span className="text-gray-600 dark:text-gray-400 capitalize">{product.lifecycle_phase.replace('_', ' ')}</span>
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      <ScoreChange value={product.score_change} />
-                    </td>
-                    <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400 tabular-nums">
-                      {daysSince(product.first_seen_date)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400 tabular-nums">
-                      {product.data_confidence != null ? `${(product.data_confidence * 100).toFixed(1)}%` : '—'}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-4 py-3"><VerdictBadge verdict={product.current_verdict} /></td>
+                      <td className="px-4 py-3">
+                        <CoverageBar active={aj} total={tj} pct={covPct} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-gray-600 dark:text-gray-400 capitalize">{product.lifecycle_phase.replace('_', ' ')}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400 tabular-nums">
+                        {daysSince(product.first_seen_date)}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -194,5 +209,21 @@ function ScoreChange({ value }) {
     <span className={positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
       {positive ? '▲' : '▼'} {Math.abs(value).toFixed(1)}
     </span>
+  )
+}
+
+function CoverageBar({ active, total, pct }) {
+  const segments = Array.from({ length: total }, (_, i) => i < active)
+  const color = pct >= 75 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-400'
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex gap-0.5">
+        {segments.map((filled, i) => (
+          <div key={i} className={`w-4 h-2 rounded-sm ${filled ? color : 'bg-gray-200 dark:bg-gray-700'}`} />
+        ))}
+      </div>
+      <span className="text-[11px] text-gray-500 dark:text-gray-400 tabular-nums">{active}/{total}</span>
+    </div>
   )
 }

@@ -496,6 +496,8 @@ function AgentSchedules() {
   const [schedules, setSchedules] = useState([])
   const [loading, setLoading] = useState(true)
   const [runningAll, setRunningAll] = useState(false)
+  const [schedStatus, setSchedStatus] = useState({ active: true, next_run: 'Loading...', state: 'active' })
+  const [toggling, setToggling] = useState(false)
 
   const loadSchedules = useCallback(async () => {
     const { data } = await supabase.from('schedules').select('*').order('run_time')
@@ -503,9 +505,18 @@ function AgentSchedules() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { loadSchedules() }, [loadSchedules])
+  const loadSchedulerStatus = useCallback(async () => {
+    try {
+      const data = await agentApi.healthCheck().catch(() => null)
+      if (!data) { setSchedStatus({ active: false, next_run: 'Agent server not running', state: 'stopped' }); return }
+      const resp = await fetch('http://localhost:8000/scheduler/status')
+      if (resp.ok) setSchedStatus(await resp.json())
+    } catch { setSchedStatus(prev => prev) }
+  }, [])
 
-  // Realtime
+  useEffect(() => { loadSchedules(); loadSchedulerStatus() }, [loadSchedules, loadSchedulerStatus])
+  useEffect(() => { const i = setInterval(loadSchedulerStatus, 15000); return () => clearInterval(i) }, [loadSchedulerStatus])
+
   useEffect(() => {
     const channel = supabase
       .channel('schedules-rt')
@@ -516,21 +527,50 @@ function AgentSchedules() {
 
   const handleRunAll = async () => {
     setRunningAll(true)
-    try {
-      await agentApi.runAll()
-    } catch (e) {
-      console.error('Run all failed:', e)
-    }
+    try { await agentApi.runAll() } catch (e) { console.error('Run all failed:', e) }
     setTimeout(() => setRunningAll(false), 3000)
+  }
+
+  const toggleScheduler = async () => {
+    setToggling(true)
+    try {
+      const endpoint = schedStatus.active ? '/scheduler/pause' : '/scheduler/resume'
+      const resp = await fetch(`http://localhost:8000${endpoint}`, { method: 'POST' })
+      if (resp.ok) await loadSchedulerStatus()
+    } catch (e) { console.error('Toggle failed:', e) }
+    setToggling(false)
   }
 
   if (loading) return <LoadingSpinner message="Loading schedules..." />
 
   return (
     <div className="space-y-4">
-      <button onClick={handleRunAll} disabled={runningAll} className="px-6 py-3 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 transition-colors">
-        {runningAll ? 'Starting Run...' : 'Run All Now'}
-      </button>
+      {/* Schedule Status Card */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className={`w-3 h-3 rounded-full ${schedStatus.state === 'active' ? 'bg-emerald-500 animate-pulse' : schedStatus.state === 'paused' ? 'bg-amber-500' : 'bg-gray-400'}`} />
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-gray-900 dark:text-white">Nightly Pipeline</span>
+              <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ${
+                schedStatus.state === 'active' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' :
+                schedStatus.state === 'paused' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' :
+                'bg-gray-100 dark:bg-gray-800 text-gray-500'
+              }`}>{schedStatus.state}</span>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{schedStatus.next_run}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button onClick={toggleScheduler} disabled={toggling || schedStatus.state === 'stopped'}
+            className={`w-12 h-6 rounded-full transition-colors relative ${schedStatus.active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'} ${schedStatus.state === 'stopped' ? 'opacity-50 cursor-not-allowed' : ''}`}>
+            <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${schedStatus.active ? 'left-7' : 'left-1'}`} />
+          </button>
+          <button onClick={handleRunAll} disabled={runningAll} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 disabled:opacity-50">
+            {runningAll ? 'Starting...' : 'Run Now'}
+          </button>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {schedules.map(schedule => (
