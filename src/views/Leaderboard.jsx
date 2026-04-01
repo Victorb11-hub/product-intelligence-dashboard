@@ -40,19 +40,19 @@ export default function Leaderboard() {
 
   return (
     <div className="p-4 md:p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Product Leaderboard</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+      <div className="mb-5">
+        <h1 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">Leaderboard</h1>
+        <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">
           {filtered.length} product{filtered.length !== 1 ? 's' : ''} tracked
         </p>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-5 p-3 md:p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
+      <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 p-3 bg-white dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a]">
         <select
           value={categoryFilter}
           onChange={e => setCategoryFilter(e.target.value)}
-          className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          className="text-sm border border-gray-300 dark:border-gray-600 px-3 py-1.5 bg-white dark:bg-[#111] text-gray-900 dark:text-white text-xs"
         >
           <option value="all">All Categories</option>
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -61,7 +61,7 @@ export default function Leaderboard() {
         <select
           value={verdictFilter}
           onChange={e => setVerdictFilter(e.target.value)}
-          className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          className="text-sm border border-gray-300 dark:border-gray-600 px-3 py-1.5 bg-white dark:bg-[#111] text-gray-900 dark:text-white text-xs"
         >
           <option value="all">All Verdicts</option>
           <option value="buy">Buy</option>
@@ -72,7 +72,7 @@ export default function Leaderboard() {
         <select
           value={lifecycleFilter}
           onChange={e => setLifecycleFilter(e.target.value)}
-          className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          className="text-sm border border-gray-300 dark:border-gray-600 px-3 py-1.5 bg-white dark:bg-[#111] text-gray-900 dark:text-white text-xs"
         >
           <option value="all">All Phases</option>
           {lifecycles.map(l => <option key={l} value={l}>{l.replace('_', ' ')}</option>)}
@@ -116,7 +116,7 @@ export default function Leaderboard() {
                 <div
                   key={product.id}
                   onClick={() => navigate(`/product/${product.id}`)}
-                  className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 cursor-pointer active:bg-indigo-50 dark:active:bg-indigo-900/10"
+                  className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] p-4 cursor-pointer active:bg-indigo-50 dark:active:bg-indigo-900/10"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
@@ -141,7 +141,7 @@ export default function Leaderboard() {
           </div>
 
           {/* Desktop: table view */}
-          <div className="hidden md:block bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="hidden md:block bg-white dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
@@ -218,9 +218,9 @@ function CoverageBar({ active, total, pct }) {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="flex gap-0.5">
+      <div className="flex gap-px">
         {segments.map((filled, i) => (
-          <div key={i} className={`w-4 h-2 rounded-sm ${filled ? color : 'bg-gray-200 dark:bg-gray-700'}`} />
+          <div key={i} className={`w-4 h-2 ${filled ? color : 'bg-gray-200 dark:bg-gray-700'}`} />
         ))}
       </div>
       <span className="text-[11px] text-gray-500 dark:text-gray-400 tabular-nums">{active}/{total}</span>

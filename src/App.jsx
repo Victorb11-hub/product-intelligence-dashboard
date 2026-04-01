@@ -10,57 +10,77 @@ import PostsComments from './views/PostsComments.jsx'
 import ResearchCouncil from './views/ResearchCouncil.jsx'
 import EmailSettings from './views/EmailSettings.jsx'
 
+// SVG icon components — clean, 16px
+const Icons = {
+  chart: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 14V6M6 14V2M10 14V8M14 14V4"/></svg>,
+  chat: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 2h12v9H5L2 14V2z"/></svg>,
+  users: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="5.5" cy="5" r="2.5"/><circle cx="11" cy="5.5" r="2"/><path d="M1 14c0-3 2-4.5 4.5-4.5s4.5 1.5 4.5 4.5M9.5 14c0-2.5 1.5-3.5 3-3.5S15 11.5 15 14"/></svg>,
+  flag: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 2v12M2 2h10l-2 4 2 4H2"/></svg>,
+  bell: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 6a4 4 0 018 0c0 4 2 5 2 5H2s2-1 2-5M6.5 13.5a1.5 1.5 0 003 0"/></svg>,
+  clipboard: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="2" width="10" height="12"/><path d="M6 1h4v2H6zM6 7h4M6 10h3"/></svg>,
+  gear: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"/></svg>,
+  mail: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="3" width="14" height="10"/><path d="M1 3l7 5 7-5"/></svg>,
+  sun: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"/></svg>,
+  moon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13.5 8.5A5.5 5.5 0 017.5 2.5 5.5 5.5 0 1013.5 8.5z"/></svg>,
+}
+
 const navItems = [
-  { to: '/leaderboard', label: 'Board', icon: '📊' },
-  { to: '/council', label: 'Council', icon: '🧠' },
-  { to: '/posts', label: 'Posts', icon: '💬' },
-  { to: '/alerts', label: 'Alerts', icon: '🔔' },
-  { to: '/agents', label: 'Agents', icon: '🤖' },
+  { to: '/leaderboard', label: 'Leaderboard', icon: Icons.chart },
+  { to: '/posts', label: 'Posts & Comments', icon: Icons.chat },
+  { to: '/council', label: 'Research Council', icon: Icons.users },
+  { to: '/competitors', label: 'Competitors', icon: Icons.flag },
+  { to: '/alerts', label: 'Alerts', icon: Icons.bell },
+  { to: '/sourcing', label: 'Sourcing Log', icon: Icons.clipboard },
+  { to: '/agents', label: 'Products & Agents', icon: Icons.gear },
+  { to: '/email', label: 'Email Settings', icon: Icons.mail },
 ]
 
-const desktopOnlyNav = [
-  { to: '/competitors', label: 'Competitors', icon: '🏪' },
-  { to: '/sourcing', label: 'Sourcing', icon: '📦' },
-  { to: '/email', label: 'Email Settings', icon: '📧' },
+const mobileNav = [
+  { to: '/leaderboard', label: 'Board', icon: Icons.chart },
+  { to: '/council', label: 'Council', icon: Icons.users },
+  { to: '/posts', label: 'Posts', icon: Icons.chat },
+  { to: '/alerts', label: 'Alerts', icon: Icons.bell },
+  { to: '/agents', label: 'Agents', icon: Icons.gear },
 ]
 
 function Sidebar() {
   const { dark, toggle } = useTheme()
 
   return (
-    <aside className="hidden md:flex w-64 shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex-col h-screen sticky top-0">
-      <div className="p-5 border-b border-gray-200 dark:border-gray-700">
-        <h1 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight">
-          Product Intelligence
-        </h1>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Health & Wellness Import</p>
+    <aside className="hidden md:flex w-[220px] shrink-0 bg-[#0f0f0f] flex-col h-screen sticky top-0 border-r border-[#1a1a1a]">
+      {/* Workspace header */}
+      <div className="px-5 py-5 border-b border-[#1a1a1a]">
+        <p className="text-[13px] font-bold text-gray-200 tracking-tight leading-tight">Product Intelligence</p>
+        <p className="text-[11px] text-gray-500 mt-0.5">Victor · Health & Wellness</p>
       </div>
 
-      <nav className="flex-1 p-3 space-y-1">
-        {[...navItems, ...desktopOnlyNav].map(({ to, label, icon }) => (
+      {/* Nav */}
+      <nav className="flex-1 py-2">
+        {navItems.map(({ to, label, icon }) => (
           <NavLink
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              `flex items-center gap-3 px-5 py-2 text-[13px] transition-colors border-l-[3px] ${
                 isActive
-                  ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+                  ? 'border-indigo-500 bg-[#1a1a1a] text-gray-100 font-medium'
+                  : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-[#141414]'
               }`
             }
           >
-            <span className="text-base">{icon}</span>
+            <span className="w-4 h-4 shrink-0 opacity-70">{icon}</span>
             {label}
           </NavLink>
         ))}
       </nav>
 
-      <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+      {/* Dark mode toggle */}
+      <div className="px-5 py-3 border-t border-[#1a1a1a]">
         <button
           onClick={toggle}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          className="flex items-center gap-3 text-[13px] text-gray-500 hover:text-gray-300 transition-colors w-full"
         >
-          <span className="text-base">{dark ? '☀️' : '🌙'}</span>
+          <span className="w-4 h-4 shrink-0 opacity-70">{dark ? Icons.sun : Icons.moon}</span>
           {dark ? 'Light Mode' : 'Dark Mode'}
         </button>
       </div>
@@ -70,20 +90,18 @@ function Sidebar() {
 
 function MobileTabBar() {
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex justify-around items-center h-14 safe-area-bottom">
-      {navItems.map(({ to, label, icon }) => (
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0f0f0f] border-t border-[#1a1a1a] flex justify-around items-center h-14 safe-area-bottom">
+      {mobileNav.map(({ to, label, icon }) => (
         <NavLink
           key={to}
           to={to}
           className={({ isActive }) =>
-            `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 text-[11px] font-medium transition-colors ${
-              isActive
-                ? 'text-indigo-600 dark:text-indigo-400'
-                : 'text-gray-500 dark:text-gray-400'
+            `flex flex-col items-center justify-center gap-0.5 flex-1 py-1 text-[10px] font-medium transition-colors ${
+              isActive ? 'text-indigo-400' : 'text-gray-500'
             }`
           }
         >
-          <span className="text-lg leading-none">{icon}</span>
+          <span className="w-4 h-4">{icon}</span>
           {label}
         </NavLink>
       ))}
@@ -93,7 +111,7 @@ function MobileTabBar() {
 
 export default function App() {
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
       <Sidebar />
       <main className="flex-1 overflow-auto pb-16 md:pb-0">
         <Routes>
