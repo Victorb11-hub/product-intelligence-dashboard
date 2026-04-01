@@ -9,6 +9,7 @@ import ProductsScheduling from './views/ProductsScheduling.jsx'
 import PostsComments from './views/PostsComments.jsx'
 import ResearchCouncil from './views/ResearchCouncil.jsx'
 import Brands from './views/Brands.jsx'
+import FormulaStudio from './views/FormulaStudio.jsx'
 import Settings from './views/Settings.jsx'
 
 // SVG icon components — clean, 16px
@@ -23,12 +24,14 @@ const Icons = {
   mail: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="3" width="14" height="10"/><path d="M1 3l7 5 7-5"/></svg>,
   sun: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"/></svg>,
   moon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13.5 8.5A5.5 5.5 0 017.5 2.5 5.5 5.5 0 1013.5 8.5z"/></svg>,
+  formula: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 3h10M3 8h7M3 13h10M11 6l2 4M11 10l2-4"/></svg>,
 }
 
 const navItems = [
   { to: '/leaderboard', label: 'Leaderboard', icon: Icons.chart },
   { to: '/posts', label: 'Posts & Comments', icon: Icons.chat },
   { to: '/council', label: 'Research Council', icon: Icons.users },
+  { to: '/formula', label: 'Formula Studio', icon: Icons.formula },
   { to: '/brands', label: 'Brands', icon: Icons.flag },
   { to: '/competitors', label: 'Competitors', icon: Icons.clipboard },
   { to: '/alerts', label: 'Alerts', icon: Icons.bell },
@@ -136,6 +139,7 @@ export default function App() {
           <Route path="/agents" element={<ProductsScheduling />} />
           <Route path="/posts" element={<PostsComments />} />
           <Route path="/council" element={<ResearchCouncil />} />
+          <Route path="/formula" element={<FormulaStudio />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>
