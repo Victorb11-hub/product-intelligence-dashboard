@@ -7,17 +7,21 @@ import Alerts from './views/Alerts.jsx'
 import SourcingLog from './views/SourcingLog.jsx'
 import ProductsScheduling from './views/ProductsScheduling.jsx'
 import PostsComments from './views/PostsComments.jsx'
+import ResearchCouncil from './views/ResearchCouncil.jsx'
+import EmailSettings from './views/EmailSettings.jsx'
 
 const navItems = [
   { to: '/leaderboard', label: 'Board', icon: '📊' },
+  { to: '/council', label: 'Council', icon: '🧠' },
   { to: '/posts', label: 'Posts', icon: '💬' },
   { to: '/alerts', label: 'Alerts', icon: '🔔' },
-  { to: '/sourcing', label: 'Source', icon: '📦' },
   { to: '/agents', label: 'Agents', icon: '🤖' },
 ]
 
 const desktopOnlyNav = [
   { to: '/competitors', label: 'Competitors', icon: '🏪' },
+  { to: '/sourcing', label: 'Sourcing', icon: '📦' },
+  { to: '/email', label: 'Email Settings', icon: '📧' },
 ]
 
 function Sidebar() {
@@ -101,6 +105,8 @@ export default function App() {
           <Route path="/sourcing" element={<SourcingLog />} />
           <Route path="/agents" element={<ProductsScheduling />} />
           <Route path="/posts" element={<PostsComments />} />
+          <Route path="/council" element={<ResearchCouncil />} />
+          <Route path="/email" element={<EmailSettings />} />
         </Routes>
       </main>
       <MobileTabBar />

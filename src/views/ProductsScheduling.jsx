@@ -7,18 +7,24 @@ import EmptyState from '../components/EmptyState.jsx'
 const CATEGORIES = ['Supplements', 'Skincare', 'Haircare', 'Personal Care', 'Wellness', 'Beauty Tools', 'Fitness', 'Other']
 
 const PLATFORM_META = {
-  reddit: { label: 'Reddit', category: 'Social', color: 'bg-orange-500' },
-  tiktok: { label: 'TikTok', category: 'Social', color: 'bg-pink-500' },
-  instagram: { label: 'Instagram', category: 'Social', color: 'bg-purple-500' },
-  x: { label: 'X', category: 'Social', color: 'bg-gray-800' },
-  facebook: { label: 'Facebook', category: 'Social', color: 'bg-blue-600' },
-  youtube: { label: 'YouTube', category: 'Social', color: 'bg-red-600' },
-  google_trends: { label: 'Google Trends', category: 'Search', color: 'bg-green-600' },
-  amazon: { label: 'Amazon', category: 'Retail', color: 'bg-amber-600' },
-  walmart: { label: 'Walmart', category: 'Retail', color: 'bg-blue-500' },
-  etsy: { label: 'Etsy', category: 'Retail', color: 'bg-orange-400' },
-  alibaba: { label: 'Alibaba', category: 'Supply', color: 'bg-yellow-600' },
-  pinterest: { label: 'Pinterest', category: 'Discovery', color: 'bg-red-500' },
+  reddit:        { label: 'Reddit',        category: 'Social',    color: 'bg-orange-500',  source: 'Apify',    status: 'live',    cost: '$0.50/1K + $3.80/1K comments', signal: 'signals_social' },
+  tiktok:        { label: 'TikTok',        category: 'Social',    color: 'bg-pink-500',    source: 'Apify',    status: 'ready',   cost: '$0.50/1K',    signal: 'signals_social' },
+  instagram:     { label: 'Instagram',     category: 'Social',    color: 'bg-purple-500',  source: 'Apify',    status: 'ready',   cost: '$0.50/1K',    signal: 'signals_social' },
+  x:             { label: 'X',             category: 'Social',    color: 'bg-gray-800',    source: 'X API v2', status: 'pending',  cost: 'Free tier',   signal: 'signals_social' },
+  facebook:      { label: 'Facebook',      category: 'Social',    color: 'bg-blue-600',    source: 'Apify',    status: 'ready',   cost: '$0.50/1K',    signal: 'signals_social' },
+  youtube:       { label: 'YouTube',       category: 'Social',    color: 'bg-red-600',     source: 'YouTube API', status: 'pending', cost: 'Free tier', signal: 'signals_social' },
+  google_trends: { label: 'Google Trends', category: 'Search',    color: 'bg-green-600',   source: 'PyTrends', status: 'live',    cost: 'Free',        signal: 'signals_search' },
+  amazon:        { label: 'Amazon',        category: 'Retail',    color: 'bg-amber-600',   source: 'Apify',    status: 'ready',   cost: '$0.50/1K',    signal: 'signals_retail' },
+  walmart:       { label: 'Walmart',       category: 'Retail',    color: 'bg-blue-500',    source: 'Apify',    status: 'ready',   cost: '$0.50/1K',    signal: 'signals_retail' },
+  etsy:          { label: 'Etsy',          category: 'Retail',    color: 'bg-orange-400',  source: 'Apify',    status: 'ready',   cost: '$0.50/1K',    signal: 'signals_retail' },
+  alibaba:       { label: 'Alibaba',       category: 'Supply',    color: 'bg-yellow-600',  source: 'Apify',    status: 'ready',   cost: '$0.50/1K',    signal: 'signals_supply' },
+  pinterest:     { label: 'Pinterest',     category: 'Discovery', color: 'bg-red-500',     source: 'Apify',    status: 'ready',   cost: '$0.50/1K',    signal: 'signals_discovery' },
+}
+
+const STATUS_BADGE = {
+  live:    { label: 'LIVE',    bg: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' },
+  ready:   { label: 'READY',   bg: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' },
+  pending: { label: 'PENDING', bg: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' },
 }
 
 export default function ProductsScheduling() {
@@ -559,20 +565,45 @@ function AgentCard({ schedule, onUpdate }) {
     setTimeout(() => setRunning(false), 3000)
   }
 
+  const statusBadge = STATUS_BADGE[meta.status] || STATUS_BADGE.pending
+
   return (
-    <div className={`bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 ${!schedule.enabled ? 'opacity-60' : ''}`}>
-      <div className="flex items-center justify-between mb-3">
+    <div className={`bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 ${!schedule.enabled ? 'opacity-50' : ''}`}>
+      {/* Header: name + category + status */}
+      <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${schedule.enabled ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+          <span className={`w-2 h-2 rounded-full ${meta.status === 'live' ? 'bg-emerald-500' : meta.status === 'ready' ? 'bg-blue-400' : 'bg-gray-400'}`} />
           <span className="text-sm font-bold text-gray-900 dark:text-white">{meta.label}</span>
-          <span className={`px-2 py-0.5 text-xs font-medium text-white rounded-full ${meta.color}`}>{meta.category}</span>
         </div>
         <button onClick={toggleEnabled} className={`w-10 h-5 rounded-full transition-colors relative ${schedule.enabled ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
           <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${schedule.enabled ? 'left-5' : 'left-0.5'}`} />
         </button>
       </div>
 
-      <div className="space-y-2 text-xs">
+      {/* Badges row */}
+      <div className="flex items-center gap-1.5 mb-3">
+        <span className={`px-2 py-0.5 text-[10px] font-medium text-white rounded-full ${meta.color}`}>{meta.category}</span>
+        <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${statusBadge.bg}`}>{statusBadge.label}</span>
+      </div>
+
+      {/* Info grid */}
+      <div className="space-y-1.5 text-xs mb-3">
+        <div className="flex justify-between">
+          <span className="text-gray-500 dark:text-gray-400">Source</span>
+          <span className="text-gray-700 dark:text-gray-300 font-medium">{meta.source}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-500 dark:text-gray-400">Cost</span>
+          <span className="text-gray-700 dark:text-gray-300">{meta.cost}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-500 dark:text-gray-400">Writes to</span>
+          <span className="text-gray-700 dark:text-gray-300 font-mono text-[10px]">{meta.signal}</span>
+        </div>
+      </div>
+
+      {/* Schedule controls */}
+      <div className="space-y-2 text-xs border-t border-gray-100 dark:border-gray-800 pt-2">
         <div className="flex items-center gap-2">
           <label className="text-gray-500 dark:text-gray-400 w-16">Frequency</label>
           <select value={schedule.frequency} onChange={e => updateField('frequency', e.target.value)} className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs">
@@ -593,12 +624,16 @@ function AgentCard({ schedule, onUpdate }) {
           </div>
         )}
 
-        <div className="pt-2 border-t border-gray-100 dark:border-gray-800 space-y-1 text-gray-500 dark:text-gray-400">
-          <div>Last run: {schedule.last_run ? new Date(schedule.last_run).toLocaleString() : 'Never'}</div>
+        <div className="text-gray-500 dark:text-gray-400 pt-1">
+          Last run: {schedule.last_run ? new Date(schedule.last_run).toLocaleString() : 'Never'}
         </div>
 
-        <button onClick={triggerRun} disabled={running} className="w-full mt-2 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 rounded-lg text-xs font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/30 disabled:opacity-50">
-          {running ? 'Starting...' : 'Trigger Now'}
+        <button onClick={triggerRun} disabled={running || meta.status === 'pending'} className={`w-full mt-1 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 ${
+          meta.status === 'pending'
+            ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
+            : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/30'
+        }`}>
+          {running ? 'Starting...' : meta.status === 'pending' ? 'API Key Needed' : 'Trigger Now'}
         </button>
       </div>
     </div>
