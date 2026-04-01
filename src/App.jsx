@@ -8,7 +8,8 @@ import SourcingLog from './views/SourcingLog.jsx'
 import ProductsScheduling from './views/ProductsScheduling.jsx'
 import PostsComments from './views/PostsComments.jsx'
 import ResearchCouncil from './views/ResearchCouncil.jsx'
-import EmailSettings from './views/EmailSettings.jsx'
+import Brands from './views/Brands.jsx'
+import Settings from './views/Settings.jsx'
 
 // SVG icon components — clean, 16px
 const Icons = {
@@ -28,11 +29,15 @@ const navItems = [
   { to: '/leaderboard', label: 'Leaderboard', icon: Icons.chart },
   { to: '/posts', label: 'Posts & Comments', icon: Icons.chat },
   { to: '/council', label: 'Research Council', icon: Icons.users },
-  { to: '/competitors', label: 'Competitors', icon: Icons.flag },
+  { to: '/brands', label: 'Brands', icon: Icons.flag },
+  { to: '/competitors', label: 'Competitors', icon: Icons.clipboard },
   { to: '/alerts', label: 'Alerts', icon: Icons.bell },
-  { to: '/sourcing', label: 'Sourcing Log', icon: Icons.clipboard },
+  { to: '/sourcing', label: 'Sourcing Log', icon: Icons.chart },
   { to: '/agents', label: 'Products & Agents', icon: Icons.gear },
-  { to: '/email', label: 'Email Settings', icon: Icons.mail },
+]
+
+const bottomNav = [
+  { to: '/settings', label: 'Settings', icon: Icons.gear },
 ]
 
 const mobileNav = [
@@ -54,31 +59,21 @@ function Sidebar() {
         <p className="text-[11px] text-gray-500 mt-0.5">Victor · Health & Wellness</p>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 py-2">
+      {/* Main nav */}
+      <nav className="flex-1 py-2 overflow-y-auto">
         {navItems.map(({ to, label, icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-5 py-2 text-[13px] transition-colors border-l-[3px] ${
-                isActive
-                  ? 'border-indigo-500 bg-[#1a1a1a] text-gray-100 font-medium'
-                  : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-[#141414]'
-              }`
-            }
-          >
-            <span className="w-4 h-4 shrink-0 opacity-70">{icon}</span>
-            {label}
-          </NavLink>
+          <SidebarLink key={to} to={to} label={label} icon={icon} />
         ))}
       </nav>
 
-      {/* Dark mode toggle */}
-      <div className="px-5 py-3 border-t border-[#1a1a1a]">
+      {/* Bottom nav: Settings + Dark mode */}
+      <div className="border-t border-[#1a1a1a] py-2">
+        {bottomNav.map(({ to, label, icon }) => (
+          <SidebarLink key={to} to={to} label={label} icon={icon} />
+        ))}
         <button
           onClick={toggle}
-          className="flex items-center gap-3 text-[13px] text-gray-500 hover:text-gray-300 transition-colors w-full"
+          className="flex items-center gap-3 px-5 py-2 text-[13px] text-gray-500 hover:text-gray-300 hover:bg-[#141414] transition-colors w-full border-l-[3px] border-transparent"
         >
           <span className="w-4 h-4 shrink-0 opacity-70">{dark ? Icons.sun : Icons.moon}</span>
           {dark ? 'Light Mode' : 'Dark Mode'}
@@ -109,6 +104,22 @@ function MobileTabBar() {
   )
 }
 
+function SidebarLink({ to, label, icon }) {
+  return (
+    <NavLink to={to}
+      className={({ isActive }) =>
+        `flex items-center gap-3 px-5 py-2 text-[13px] transition-colors border-l-[3px] ${
+          isActive
+            ? 'border-indigo-500 bg-[#1a1a1a] text-gray-100 font-medium'
+            : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-[#141414]'
+        }`
+      }>
+      <span className="w-4 h-4 shrink-0 opacity-70">{icon}</span>
+      {label}
+    </NavLink>
+  )
+}
+
 export default function App() {
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
@@ -118,13 +129,14 @@ export default function App() {
           <Route path="/" element={<Navigate to="/leaderboard" replace />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/product/:id" element={<Scorecard />} />
+          <Route path="/brands" element={<Brands />} />
           <Route path="/competitors" element={<Competitors />} />
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/sourcing" element={<SourcingLog />} />
           <Route path="/agents" element={<ProductsScheduling />} />
           <Route path="/posts" element={<PostsComments />} />
           <Route path="/council" element={<ResearchCouncil />} />
-          <Route path="/email" element={<EmailSettings />} />
+          <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>
       <MobileTabBar />
