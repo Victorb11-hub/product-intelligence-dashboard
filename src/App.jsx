@@ -11,6 +11,7 @@ import ResearchCouncil from './views/ResearchCouncil.jsx'
 import Brands from './views/Brands.jsx'
 import FormulaStudio from './views/FormulaStudio.jsx'
 import Settings from './views/Settings.jsx'
+import Help from './views/Help.jsx'
 
 // SVG icon components — clean, 16px
 const Icons = {
@@ -25,6 +26,7 @@ const Icons = {
   sun: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"/></svg>,
   moon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13.5 8.5A5.5 5.5 0 017.5 2.5 5.5 5.5 0 1013.5 8.5z"/></svg>,
   formula: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 3h10M3 8h7M3 13h10M11 6l2 4M11 10l2-4"/></svg>,
+  help: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M6 6a2 2 0 013.5 1.5c0 1-1.5 1-1.5 2M8 12v.5"/></svg>,
 }
 
 const navItems = [
@@ -41,6 +43,7 @@ const navItems = [
 
 const bottomNav = [
   { to: '/settings', label: 'Settings', icon: Icons.gear },
+  { to: '/help', label: 'Help', icon: Icons.help },
 ]
 
 const mobileNav = [
@@ -141,6 +144,7 @@ export default function App() {
           <Route path="/council" element={<ResearchCouncil />} />
           <Route path="/formula" element={<FormulaStudio />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/help" element={<Help />} />
         </Routes>
       </main>
       <MobileTabBar />

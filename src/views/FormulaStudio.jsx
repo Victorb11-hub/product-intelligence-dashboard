@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { agentApi } from '../lib/agentApi.js'
 import LoadingSpinner from '../components/LoadingSpinner.jsx'
+import { FormulaGuide } from './Help.jsx'
 
 export default function FormulaStudio() {
   const [settings, setSettings] = useState({})
@@ -10,6 +11,7 @@ export default function FormulaStudio() {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [recomputing, setRecomputing] = useState(false)
+  const [showGuide, setShowGuide] = useState(false)
 
   const load = useCallback(async () => {
     const [sResp, wResp, rResp, pResp] = await Promise.all([
@@ -56,15 +58,32 @@ export default function FormulaStudio() {
   return (
     <div className="p-4 md:p-6 max-w-4xl">
       <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">Formula Studio</h1>
-          <p className="text-xs text-gray-500 mt-0.5">Single source of truth for the scoring system</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">Formula Studio</h1>
+            <p className="text-xs text-gray-500 mt-0.5">Single source of truth for the scoring system</p>
+          </div>
+          <button onClick={() => setShowGuide(!showGuide)}
+            className={`w-6 h-6 flex items-center justify-center text-xs font-bold border ${showGuide ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-[#111] text-gray-400 border-gray-300 dark:border-[#1a1a1a] hover:text-indigo-500'}`}>
+            ?
+          </button>
         </div>
         <button onClick={recompute} disabled={recomputing}
           className="px-4 py-1.5 bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 disabled:opacity-50">
           {recomputing ? 'Recomputing...' : 'Recompute All Scores'}
         </button>
       </div>
+
+      {/* Formula Guide — collapsible */}
+      {showGuide && (
+        <div className="mb-5 border border-indigo-200 dark:border-indigo-800/30 bg-indigo-50/30 dark:bg-indigo-900/5 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">Formula Guide</span>
+            <button onClick={() => setShowGuide(false)} className="text-[11px] text-indigo-500 hover:underline">Close</button>
+          </div>
+          <FormulaGuide />
+        </div>
+      )}
 
       {/* Formula summary */}
       <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] p-4 mb-5">
