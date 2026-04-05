@@ -1,5 +1,7 @@
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
 import { useTheme } from './context/ThemeContext.jsx'
+import { useAuth } from './context/AuthContext.jsx'
+import Login from './views/Login.jsx'
 import Leaderboard from './views/Leaderboard.jsx'
 import Scorecard from './views/Scorecard.jsx'
 import Competitors from './views/Competitors.jsx'
@@ -29,22 +31,28 @@ const Icons = {
   help: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M6 6a2 2 0 013.5 1.5c0 1-1.5 1-1.5 2M8 12v.5"/></svg>,
 }
 
+// minRole: 'viewer' = everyone, 'analyst' = analyst+owner, 'owner' = owner only
 const navItems = [
-  { to: '/leaderboard', label: 'Leaderboard', icon: Icons.chart },
-  { to: '/posts', label: 'Posts & Comments', icon: Icons.chat },
-  { to: '/council', label: 'Research Council', icon: Icons.users },
-  { to: '/formula', label: 'Formula Studio', icon: Icons.formula },
-  { to: '/brands', label: 'Brands', icon: Icons.flag },
-  { to: '/competitors', label: 'Competitors', icon: Icons.clipboard },
-  { to: '/alerts', label: 'Alerts', icon: Icons.bell },
-  { to: '/sourcing', label: 'Sourcing Log', icon: Icons.chart },
-  { to: '/agents', label: 'Products & Agents', icon: Icons.gear },
+  { to: '/leaderboard', label: 'Leaderboard', icon: Icons.chart, minRole: 'viewer' },
+  { to: '/posts', label: 'Posts & Comments', icon: Icons.chat, minRole: 'viewer' },
+  { to: '/council', label: 'Research Council', icon: Icons.users, minRole: 'viewer' },
+  { to: '/formula', label: 'Formula Studio', icon: Icons.formula, minRole: 'owner' },
+  { to: '/brands', label: 'Brands', icon: Icons.flag, minRole: 'analyst' },
+  { to: '/competitors', label: 'Competitors', icon: Icons.clipboard, minRole: 'analyst' },
+  { to: '/alerts', label: 'Alerts', icon: Icons.bell, minRole: 'viewer' },
+  { to: '/sourcing', label: 'Sourcing Log', icon: Icons.clipboard, minRole: 'analyst' },
+  { to: '/agents', label: 'Products & Agents', icon: Icons.gear, minRole: 'analyst' },
 ]
 
 const bottomNav = [
-  { to: '/settings', label: 'Settings', icon: Icons.gear },
-  { to: '/help', label: 'Help', icon: Icons.help },
+  { to: '/settings', label: 'Settings', icon: Icons.gear, minRole: 'owner' },
+  { to: '/help', label: 'Help', icon: Icons.help, minRole: 'viewer' },
 ]
+
+const ROLE_LEVEL = { viewer: 0, analyst: 1, owner: 2 }
+function hasAccess(userRole, minRole) {
+  return (ROLE_LEVEL[userRole] || 0) >= (ROLE_LEVEL[minRole] || 0)
+}
 
 const mobileNav = [
   { to: '/leaderboard', label: 'Board', icon: Icons.chart },
@@ -56,25 +64,32 @@ const mobileNav = [
 
 function Sidebar() {
   const { dark, toggle } = useTheme()
+  const { user, logout } = useAuth()
+  const role = user?.role || 'viewer'
+  const ROLE_BADGE = { owner: 'text-indigo-400', analyst: 'text-emerald-400', viewer: 'text-gray-500' }
 
   return (
     <aside className="hidden md:flex w-[220px] shrink-0 bg-[#0f0f0f] flex-col h-screen sticky top-0 border-r border-[#1a1a1a]">
       {/* Workspace header */}
       <div className="px-5 py-5 border-b border-[#1a1a1a]">
         <p className="text-[13px] font-bold text-gray-200 tracking-tight leading-tight">Product Intelligence</p>
-        <p className="text-[11px] text-gray-500 mt-0.5">Victor · Health & Wellness</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <p className="text-[11px] text-gray-500">{user?.name || 'Guest'}</p>
+          <span className={`text-[9px] font-bold uppercase ${ROLE_BADGE[role] || ROLE_BADGE.viewer}`}>{role}</span>
+          {role === 'viewer' && <span className="text-[9px] text-gray-600 border border-gray-700 px-1">VIEW ONLY</span>}
+        </div>
       </div>
 
-      {/* Main nav */}
+      {/* Main nav — filtered by role */}
       <nav className="flex-1 py-2 overflow-y-auto">
-        {navItems.map(({ to, label, icon }) => (
+        {navItems.filter(item => hasAccess(role, item.minRole)).map(({ to, label, icon }) => (
           <SidebarLink key={to} to={to} label={label} icon={icon} />
         ))}
       </nav>
 
-      {/* Bottom nav: Settings + Dark mode */}
+      {/* Bottom nav: Settings + Help + Theme + Logout */}
       <div className="border-t border-[#1a1a1a] py-2">
-        {bottomNav.map(({ to, label, icon }) => (
+        {bottomNav.filter(item => hasAccess(role, item.minRole)).map(({ to, label, icon }) => (
           <SidebarLink key={to} to={to} label={label} icon={icon} />
         ))}
         <button
@@ -83,6 +98,13 @@ function Sidebar() {
         >
           <span className="w-4 h-4 shrink-0 opacity-70">{dark ? Icons.sun : Icons.moon}</span>
           {dark ? 'Light Mode' : 'Dark Mode'}
+        </button>
+        <button
+          onClick={logout}
+          className="flex items-center gap-3 px-5 py-2 text-[13px] text-red-500/70 hover:text-red-400 hover:bg-[#141414] transition-colors w-full border-l-[3px] border-transparent"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4 shrink-0 opacity-70"><path d="M6 2H3v12h3M11 4l4 4-4 4M15 8H6"/></svg>
+          Sign Out
         </button>
       </div>
     </aside>
@@ -126,28 +148,48 @@ function SidebarLink({ to, label, icon }) {
   )
 }
 
+function RequireAuth({ children, minRole = 'viewer' }) {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (!user) return <Navigate to="/login" replace />
+  if (!hasAccess(user.role, minRole)) return <Navigate to="/leaderboard" replace />
+  return children
+}
+
 export default function App() {
+  const { user, loading } = useAuth()
+
+  if (loading) return null
+
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
-      <Sidebar />
-      <main className="flex-1 overflow-auto pb-16 md:pb-0">
-        <Routes>
-          <Route path="/" element={<Navigate to="/leaderboard" replace />} />
-          <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="/product/:id" element={<Scorecard />} />
-          <Route path="/brands" element={<Brands />} />
-          <Route path="/competitors" element={<Competitors />} />
-          <Route path="/alerts" element={<Alerts />} />
-          <Route path="/sourcing" element={<SourcingLog />} />
-          <Route path="/agents" element={<ProductsScheduling />} />
-          <Route path="/posts" element={<PostsComments />} />
-          <Route path="/council" element={<ResearchCouncil />} />
-          <Route path="/formula" element={<FormulaStudio />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/help" element={<Help />} />
-        </Routes>
-      </main>
-      <MobileTabBar />
-    </div>
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="*" element={
+        !user ? <Navigate to="/login" replace /> : (
+          <div className="flex min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
+            <Sidebar />
+            <main className="flex-1 overflow-auto pb-16 md:pb-0">
+              <Routes>
+                <Route path="/" element={<Navigate to="/leaderboard" replace />} />
+                <Route path="/leaderboard" element={<Leaderboard />} />
+                <Route path="/product/:id" element={<Scorecard />} />
+                <Route path="/posts" element={<PostsComments />} />
+                <Route path="/council" element={<ResearchCouncil />} />
+                <Route path="/alerts" element={<Alerts />} />
+                <Route path="/help" element={<Help />} />
+                <Route path="/brands" element={<RequireAuth minRole="analyst"><Brands /></RequireAuth>} />
+                <Route path="/competitors" element={<RequireAuth minRole="analyst"><Competitors /></RequireAuth>} />
+                <Route path="/sourcing" element={<RequireAuth minRole="analyst"><SourcingLog /></RequireAuth>} />
+                <Route path="/agents" element={<RequireAuth minRole="analyst"><ProductsScheduling /></RequireAuth>} />
+                <Route path="/formula" element={<RequireAuth minRole="owner"><FormulaStudio /></RequireAuth>} />
+                <Route path="/settings" element={<RequireAuth minRole="owner"><Settings /></RequireAuth>} />
+                <Route path="*" element={<Navigate to="/leaderboard" replace />} />
+              </Routes>
+            </main>
+            <MobileTabBar />
+          </div>
+        )
+      } />
+    </Routes>
   )
 }
