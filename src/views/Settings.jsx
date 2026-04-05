@@ -6,7 +6,7 @@ export default function Settings() {
   const [tab, setTab] = useState('email')
   const tabs = [
     { id: 'email', label: 'Email' }, { id: 'users', label: 'Users' },
-    { id: 'scoring', label: 'Scoring' }, { id: 'pipeline', label: 'Pipeline' },
+    { id: 'pipeline', label: 'Pipeline' },
     { id: 'data', label: 'Data' }, { id: 'about', label: 'About' },
   ]
   return (
@@ -20,7 +20,6 @@ export default function Settings() {
       </div>
       {tab === 'email' && <EmailSection />}
       {tab === 'users' && <UsersSection />}
-      {tab === 'scoring' && <ScoringSection />}
       {tab === 'pipeline' && <PipelineSection />}
       {tab === 'data' && <DataSection />}
       {tab === 'about' && <AboutSection />}
@@ -129,61 +128,6 @@ function UsersSection() {
         <p><strong>Owner:</strong> Full access — settings, scoring, agents, sourcing</p>
         <p><strong>Analyst:</strong> View all, add products, log sourcing, submit council votes</p>
         <p><strong>Viewer:</strong> Read-only — see all data but cannot change anything</p>
-      </div>
-    </div>
-  )
-}
-
-// ── SCORING ──
-function ScoringSection() {
-  const [settings, setSettings] = useState({}); const [loading, setLoading] = useState(true)
-
-  const load = useCallback(async () => {
-    const { data } = await supabase.from('scoring_settings').select('*')
-    const map = {}; (data || []).forEach(r => { map[r.setting_key] = r })
-    setSettings(map); setLoading(false)
-  }, [])
-  useEffect(() => { load() }, [load])
-
-  const update = async (key, value) => {
-    const v = parseFloat(value); if (isNaN(v)) return
-    await supabase.from('scoring_settings').update({ setting_value: v, updated_at: new Date().toISOString() }).eq('setting_key', key)
-    setSettings(p => ({ ...p, [key]: { ...p[key], setting_value: v } }))
-  }
-
-  const val = (key) => settings[key]?.setting_value ?? 0
-
-  if (loading) return <LoadingSpinner />
-  return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-xs font-bold text-gray-900 dark:text-white mb-3">Job Weights (must sum to 100%)</h3>
-        <div className="space-y-2">
-          {[['job1_weight', 'Job 1 — Early Detection'], ['job2_weight', 'Job 2 — Demand Validation'], ['job3_weight', 'Job 3 — Purchase Intent'], ['job4_weight', 'Job 4 — Supply Readiness']].map(([key, label]) => (
-            <SettingSlider key={key} label={label} value={val(key)} min={0} max={1} step={0.05} format={v => `${(v * 100).toFixed(0)}%`} onChange={v => update(key, v)} />
-          ))}
-          <p className="text-[10px] text-gray-400">Current sum: {((val('job1_weight') + val('job2_weight') + val('job3_weight') + val('job4_weight')) * 100).toFixed(0)}%</p>
-        </div>
-      </div>
-      <div>
-        <h3 className="text-xs font-bold text-gray-900 dark:text-white mb-3">Verdict Thresholds</h3>
-        <div className="space-y-2">
-          <SettingSlider label="Buy threshold" value={val('buy_threshold')} min={50} max={95} step={1} format={v => v.toFixed(0)} onChange={v => update('buy_threshold', v)} />
-          <SettingSlider label="Watch threshold" value={val('watch_threshold')} min={30} max={74} step={1} format={v => v.toFixed(0)} onChange={v => update('watch_threshold', v)} />
-        </div>
-      </div>
-      <div>
-        <h3 className="text-xs font-bold text-gray-900 dark:text-white mb-3">Recency Weights</h3>
-        <div className="space-y-2">
-          {[['recency_0_7', '0–7 days'], ['recency_8_14', '8–14 days'], ['recency_15_21', '15–21 days'], ['recency_22_30', '22–30 days']].map(([key, label]) => (
-            <SettingSlider key={key} label={label} value={val(key)} min={0} max={1} step={0.05} format={v => v.toFixed(2)} onChange={v => update(key, v)} />
-          ))}
-        </div>
-      </div>
-      <div>
-        <h3 className="text-xs font-bold text-gray-900 dark:text-white mb-3">Other</h3>
-        <SettingSlider label="Lookback window (days)" value={val('lookback_days')} min={7} max={90} step={1} format={v => v.toFixed(0)} onChange={v => update('lookback_days', v)} />
-        <SettingSlider label="Relevance filter threshold" value={val('relevance_threshold')} min={0} max={0.5} step={0.05} format={v => v.toFixed(2)} onChange={v => update('relevance_threshold', v)} />
       </div>
     </div>
   )
