@@ -35,14 +35,14 @@ export default function Login() {
             <div>
               <label className="block text-[11px] font-medium text-gray-400 mb-1.5">Email</label>
               <input
-                type="text"
+                type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                autoComplete="username"
+                autoComplete="email"
                 autoFocus
                 required
                 className="w-full text-sm px-3 py-2 bg-[#0a0a0a] border border-[#1a1a1a] text-white placeholder-gray-600 focus:border-indigo-500 focus:outline-none"
-                placeholder="admin"
+                placeholder="you@example.com"
               />
             </div>
 
