@@ -4,19 +4,20 @@ import { supabase } from '../lib/supabase.js'
 const AuthContext = createContext()
 
 const TOKEN_KEY = 'pi_auth_token'
-const SESSION_DAYS = 7
-
-function encodeToken(user) {
-  const payload = {
-    email: user.email,
-    name: user.name,
-    role: user.role,
-    exp: Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000,
-  }
-  return btoa(JSON.stringify(payload))
-}
 
 function decodeToken(token) {
+  // Decode JWT payload (middle part) — signature verified server-side
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null  // Not a valid JWT
+    const payload = JSON.parse(atob(parts[1]))
+    if (payload.exp && payload.exp * 1000 > Date.now()) return payload
+    return null  // Expired
+  } catch { return null }
+}
+
+function _legacyDecodeToken(token) {
+  // Support old base64 tokens during transition — will be removed
   try {
     const payload = JSON.parse(atob(token))
     if (payload.exp && payload.exp > Date.now()) return payload
@@ -28,10 +29,22 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  // Periodic token expiry check
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const token = localStorage.getItem(TOKEN_KEY)
+      if (token && !decodeToken(token)) {
+        localStorage.removeItem(TOKEN_KEY)
+        setUser(null)
+      }
+    }, 60000)
+    return () => clearInterval(interval)
+  }, [])
+
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY)
     if (token) {
-      const decoded = decodeToken(token)
+      const decoded = decodeToken(token) || _legacyDecodeToken(token)
       if (decoded) setUser(decoded)
       else localStorage.removeItem(TOKEN_KEY)
     }
@@ -53,38 +66,28 @@ export function AuthProvider({ children }) {
 
     const dbUser = data[0]
 
-    // Verify password via the FastAPI server (bcrypt runs server-side)
-    // For Vercel deployment: verify client-side using a simple hash check
-    // Since we can't run bcrypt in browser, we'll use a server endpoint
+    // Verify password server-side only — no client-side fallback ever
+    const apiBase = import.meta.env.VITE_AGENT_API_URL || 'http://localhost:8000'
     try {
-      const resp = await fetch('http://localhost:8000/auth/verify', {
+      const resp = await fetch(`${apiBase}/auth/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
-      if (resp.ok) {
-        const result = await resp.json()
-        if (result.valid) {
-          const token = encodeToken(dbUser)
-          localStorage.setItem(TOKEN_KEY, token)
-          setUser({ email: dbUser.email, name: dbUser.name, role: dbUser.role })
-          await logSecurity('login_success', email, `Role: ${dbUser.role}`)
-          return { success: true }
-        }
+      if (!resp.ok) {
+        await logSecurity('login_failed', email, `Server error: ${resp.status}`)
+        return { success: false, error: 'Authentication server error. Try again.' }
+      }
+      const result = await resp.json()
+      if (result.valid && result.token) {
+        localStorage.setItem(TOKEN_KEY, result.token)
+        setUser({ email: dbUser.email, name: result.name || dbUser.name, role: result.role || dbUser.role })
+        await logSecurity('login_success', email, `Role: ${result.role}`)
+        return { success: true }
       }
     } catch {
-      // Server not running — fall back to direct hash comparison
-      // This is a simplified check for when FastAPI is not available
-    }
-
-    // Fallback: simple string match for the admin user (temporary)
-    // In production this should always go through the server
-    if (dbUser.password_hash && password === 'admin123' && email === 'admin') {
-      const token = encodeToken(dbUser)
-      localStorage.setItem(TOKEN_KEY, token)
-      setUser({ email: dbUser.email, name: dbUser.name, role: dbUser.role })
-      await logSecurity('login_success', email, `Role: ${dbUser.role}`)
-      return { success: true }
+      await logSecurity('login_failed', email, 'Server unreachable')
+      return { success: false, error: 'Agent server not reachable. Start the server with python start.py' }
     }
 
     await logSecurity('login_failed', email, 'Wrong password')
