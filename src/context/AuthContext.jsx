@@ -29,6 +29,17 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  // Periodic session check — every 30 minutes verify session is still valid
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session && user) {
+        setUser(null) // Session expired — force logout
+      }
+    }, 30 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [user])
+
   async function _loadRole(email) {
     try {
       const { data } = await supabase
