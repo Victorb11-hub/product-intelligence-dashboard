@@ -11,6 +11,7 @@ import ProductsScheduling from './views/ProductsScheduling.jsx'
 import PostsComments from './views/PostsComments.jsx'
 import ResearchCouncil from './views/ResearchCouncil.jsx'
 import Brands from './views/Brands.jsx'
+import Discovery from './views/Discovery.jsx'
 import FormulaStudio from './views/FormulaStudio.jsx'
 import Settings from './views/Settings.jsx'
 import Help from './views/Help.jsx'
@@ -29,11 +30,13 @@ const Icons = {
   moon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M13.5 8.5A5.5 5.5 0 017.5 2.5 5.5 5.5 0 1013.5 8.5z"/></svg>,
   formula: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 3h10M3 8h7M3 13h10M11 6l2 4M11 10l2-4"/></svg>,
   help: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M6 6a2 2 0 013.5 1.5c0 1-1.5 1-1.5 2M8 12v.5"/></svg>,
+  compass: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M10.5 5.5L9 9 5.5 10.5 7 7z"/></svg>,
 }
 
 // minRole: 'viewer' = everyone, 'analyst' = analyst+owner, 'owner' = owner only
 const navItems = [
   { to: '/leaderboard', label: 'Leaderboard', icon: Icons.chart, minRole: 'viewer' },
+  { to: '/discovery', label: 'Discovery', icon: Icons.compass, minRole: 'viewer' },
   { to: '/posts', label: 'Posts & Comments', icon: Icons.chat, minRole: 'viewer' },
   { to: '/council', label: 'Research Council', icon: Icons.users, minRole: 'viewer' },
   { to: '/formula', label: 'Formula Studio', icon: Icons.formula, minRole: 'owner' },
@@ -173,6 +176,7 @@ export default function App() {
                 <Route path="/" element={<Navigate to="/leaderboard" replace />} />
                 <Route path="/leaderboard" element={<Leaderboard />} />
                 <Route path="/product/:id" element={<Scorecard />} />
+                <Route path="/discovery" element={<Discovery />} />
                 <Route path="/posts" element={<PostsComments />} />
                 <Route path="/council" element={<ResearchCouncil />} />
                 <Route path="/alerts" element={<Alerts />} />
