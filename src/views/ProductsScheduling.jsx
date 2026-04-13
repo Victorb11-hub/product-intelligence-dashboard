@@ -821,10 +821,14 @@ function RunRow({ run, meta, statusColors, isExpanded, onToggle }) {
                   <p className="text-sm text-red-600 dark:text-red-400 mt-1 font-mono">{run.error_message}</p>
                 </div>
               )}
-              <div className="flex gap-6 text-xs text-gray-500 pt-1">
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500 pt-1">
+                {run.items_new > 0 && <span className="text-emerald-600">New items: {run.items_new}</span>}
+                {run.items_duplicate > 0 && <span>Duplicates skipped: {run.items_duplicate}</span>}
+                {run.items_too_old > 0 && <span>Too old: {run.items_too_old}</span>}
+                {run.cost_saved_dedup > 0 && <span className="text-emerald-600">Dedup saved: ${run.cost_saved_dedup.toFixed(4)}</span>}
                 {run.rows_rejected > 0 && <span>Rejected: {run.rows_rejected}</span>}
                 {run.anomalies_detected > 0 && <span>Anomalies: {run.anomalies_detected}</span>}
-                {run.irrelevant_posts_discarded > 0 && <span>Irrelevant discarded: {run.irrelevant_posts_discarded}</span>}
+                {run.irrelevant_posts_discarded > 0 && <span>Irrelevant: {run.irrelevant_posts_discarded}</span>}
                 {run.integrity_check_passed != null && (
                   <span className={run.integrity_check_passed ? 'text-emerald-600' : 'text-red-500'}>
                     Integrity: {run.integrity_check_passed ? 'passed' : 'failed'}
