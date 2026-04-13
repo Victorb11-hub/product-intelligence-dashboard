@@ -179,6 +179,24 @@ function PipelineSection() {
           ))}
         </div>
       </div>
+      <div>
+        <h3 className="text-xs font-bold text-gray-900 dark:text-white mb-3">Data Lookback Windows</h3>
+        <p className="text-[10px] text-gray-400 mb-3">How far back each platform pulls content per run. Longer = more data but higher cost. Use 30 days for initial run then reduce to 7-14 days ongoing.</p>
+        <div className="space-y-1">
+          {[
+            ['lookback_reddit',    'Reddit',    7, 90],
+            ['lookback_tiktok',    'TikTok',    7, 60],
+            ['lookback_instagram', 'Instagram', 7, 60],
+            ['lookback_youtube',   'YouTube',   14, 180],
+            ['lookback_pinterest', 'Pinterest', 14, 180],
+            ['lookback_x',         'X',         1, 30],
+            ['lookback_facebook',  'Facebook',  7, 60],
+            ['lookback_amazon',    'Amazon',    14, 180],
+          ].map(([key, label, min, max]) => (
+            <SettingSlider key={key} label={label} value={val(key)} min={min} max={max} step={1} format={v => `${v.toFixed(0)} days`} onChange={v => update(key, v)} />
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
