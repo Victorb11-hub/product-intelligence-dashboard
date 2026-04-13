@@ -6,7 +6,7 @@ export default function Settings() {
   const [tab, setTab] = useState('email')
   const tabs = [
     { id: 'email', label: 'Email' }, { id: 'users', label: 'Users' },
-    { id: 'pipeline', label: 'Pipeline' },
+    { id: 'pipeline', label: 'Pipeline' }, { id: 'scrapers', label: 'Scrapers' },
     { id: 'data', label: 'Data' }, { id: 'about', label: 'About' },
   ]
   return (
@@ -21,6 +21,7 @@ export default function Settings() {
       {tab === 'email' && <EmailSection />}
       {tab === 'users' && <UsersSection />}
       {tab === 'pipeline' && <PipelineSection />}
+      {tab === 'scrapers' && <ScrapersSection />}
       {tab === 'data' && <DataSection />}
       {tab === 'about' && <AboutSection />}
     </div>
@@ -178,6 +179,118 @@ function PipelineSection() {
           ))}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ── SCRAPERS REGISTRY ──
+function ScrapersSection() {
+  const [scrapers, setScrapers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(null)
+
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('scrapers_registry').select('*').order('platform')
+    setScrapers(data || []); setLoading(false)
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const updateField = async (id, field, value) => {
+    await supabase.from('scrapers_registry').update({ [field]: value }).eq('id', id)
+    load()
+  }
+
+  const STATUS_COLORS = {
+    active: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300',
+    testing: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
+    failed: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+    inactive: 'bg-gray-100 dark:bg-gray-800 text-gray-500',
+  }
+
+  if (loading) return <LoadingSpinner />
+
+  return (
+    <div>
+      <p className="text-[11px] text-gray-400 mb-3">All Apify actors and API integrations used by the system. Updated automatically after each pipeline run.</p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-gray-200 dark:border-[#1a1a1a] text-gray-500">
+              <th className="text-left py-2 px-2">Platform</th>
+              <th className="text-left py-2 px-2">Actor</th>
+              <th className="text-left py-2 px-2">Developer</th>
+              <th className="text-right py-2 px-2">Rating</th>
+              <th className="text-right py-2 px-2">$/1K</th>
+              <th className="text-right py-2 px-2">Avg $/run</th>
+              <th className="text-left py-2 px-2">Last Run</th>
+              <th className="text-left py-2 px-2">Status</th>
+              <th className="text-left py-2 px-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {scrapers.map(s => (
+              <tr key={s.id} className="border-b border-gray-100 dark:border-[#1a1a1a]">
+                <td className="py-2 px-2 font-bold text-gray-900 dark:text-white">{s.platform}</td>
+                <td className="py-2 px-2 text-gray-600 dark:text-gray-400 font-mono text-[10px]">{s.actor_id}</td>
+                <td className="py-2 px-2 text-gray-500">{s.developer}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{s.rating?.toFixed(1) || '—'}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{s.cost_per_1k != null ? `$${s.cost_per_1k.toFixed(2)}` : 'Free'}</td>
+                <td className="py-2 px-2 text-right tabular-nums">{s.avg_cost_per_run != null ? `$${s.avg_cost_per_run.toFixed(2)}` : '—'}</td>
+                <td className="py-2 px-2 text-gray-400">{s.last_run_date || 'Never'}</td>
+                <td className="py-2 px-2">
+                  <select value={s.status} onChange={e => updateField(s.id, 'status', e.target.value)}
+                    className={`text-[10px] font-bold uppercase px-2 py-0.5 border-0 ${STATUS_COLORS[s.status] || STATUS_COLORS.inactive}`}>
+                    <option value="active">Active</option>
+                    <option value="testing">Testing</option>
+                    <option value="failed">Failed</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </td>
+                <td className="py-2 px-2">
+                  <button onClick={() => setEditing(editing === s.id ? null : s.id)} className="text-indigo-500 text-[10px]">
+                    {editing === s.id ? 'Close' : 'Edit'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Edit panel */}
+      {editing && (() => {
+        const s = scrapers.find(x => x.id === editing)
+        if (!s) return null
+        return (
+          <div className="mt-3 p-3 bg-white dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a]">
+            <p className="text-xs font-bold text-gray-900 dark:text-white mb-2">{s.actor_name} — {s.platform}</p>
+            <p className="text-[11px] text-gray-500 mb-2">{s.what_it_pulls}</p>
+            <div className="space-y-2">
+              <div>
+                <label className="text-[10px] text-gray-400">Timeframe</label>
+                <p className="text-xs text-gray-600 dark:text-gray-400">{s.timeframe || '—'}</p>
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-400">Cost model</label>
+                <p className="text-xs text-gray-600 dark:text-gray-400">{s.cost_model || '—'}</p>
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-400">Users</label>
+                <p className="text-xs text-gray-600 dark:text-gray-400">{s.user_count || '—'} users, {s.review_count || 0} reviews</p>
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-400">Notes</label>
+                <textarea value={s.notes || ''} rows={2}
+                  onChange={e => {
+                    setScrapers(prev => prev.map(x => x.id === s.id ? { ...x, notes: e.target.value } : x))
+                  }}
+                  onBlur={e => updateField(s.id, 'notes', e.target.value)}
+                  className="w-full text-xs border border-gray-300 dark:border-[#1a1a1a] px-2 py-1 bg-white dark:bg-[#0a0a0a] text-gray-900 dark:text-white resize-none mt-1" />
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
