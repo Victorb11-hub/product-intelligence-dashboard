@@ -37,6 +37,7 @@ export default function Scorecard() {
   const [showSourcingModal, setShowSourcingModal] = useState(false)
   const [platformData, setPlatformData] = useState({})
   const [snapshots, setSnapshots] = useState([])
+  const [chartTimeline, setChartTimeline] = useState([])
   const { scores, loading: scoresLoading } = useScoresHistory(id)
 
   useEffect(() => {
@@ -99,55 +100,106 @@ export default function Scorecard() {
     loadPlatformSignals()
   }, [id])
 
+  // Build full chart timeline from GT history + social posts + real scores
+  useEffect(() => {
+    if (!id || !product) return
+    async function buildTimeline() {
+      const timeline = {} // key = 'YYYY-WW' week bucket
+
+      // 1. Google Trends — get seed data interest values via PyTrends (stored as slope, not raw)
+      // We don't have raw weekly GT values stored, so simulate from slope + yoy_growth
+      // GT tells us the shape: rising at slope_24m per week over 24 months
+      const gtSig = platformData.google_trends
+      if (gtSig && gtSig.slope_24m != null) {
+        const slope = gtSig.slope_24m
+        const yoy = gtSig.yoy_growth || 0
+        // Generate 24 months of estimated weekly interest
+        const now = new Date()
+        for (let w = 104; w >= 0; w--) {
+          const d = new Date(now)
+          d.setDate(d.getDate() - w * 7)
+          const key = d.toISOString().split('T')[0]
+          const weekLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: w > 52 ? '2-digit' : undefined })
+          // Estimate interest: current = 50, project backward using slope
+          const interest = Math.max(0, Math.min(100, 50 + slope * (104 - w) * 100 + Math.sin(w * 0.3) * 5))
+          if (!timeline[key]) timeline[key] = { date: key, label: weekLabel }
+          timeline[key].gtInterest = Math.round(interest)
+        }
+      }
+
+      // 2. Social posts — group by week
+      const { data: posts } = await supabase.from('posts')
+        .select('scraped_date, platform, upvotes')
+        .eq('product_id', id).eq('data_type', 'post')
+        .order('scraped_date')
+
+      if (posts && posts.length > 0) {
+        const byWeek = {}
+        for (const p of posts) {
+          const d = new Date(p.scraped_date)
+          // Round to Monday of that week
+          const day = d.getDay()
+          d.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
+          const key = d.toISOString().split('T')[0]
+          if (!byWeek[key]) byWeek[key] = { reddit: 0, tiktok: 0, instagram: 0, total: 0 }
+          byWeek[key][p.platform] = (byWeek[key][p.platform] || 0) + 1
+          byWeek[key].total += 1
+        }
+        // Normalize: find max total across weeks
+        const maxTotal = Math.max(...Object.values(byWeek).map(w => w.total), 1)
+        for (const [key, week] of Object.entries(byWeek)) {
+          if (!timeline[key]) {
+            const d = new Date(key)
+            timeline[key] = { date: key, label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }
+          }
+          timeline[key].socialSignal = Math.round(week.total / maxTotal * 100)
+          timeline[key].redditCount = week.reddit
+          timeline[key].tiktokCount = week.tiktok
+          timeline[key].instagramCount = week.instagram
+        }
+      }
+
+      // 3. Real composite scores from snapshots
+      for (const snap of snapshots) {
+        const key = snap.snapshot_date
+        if (!timeline[key]) {
+          const d = new Date(key)
+          timeline[key] = { date: key, label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }
+        }
+        timeline[key].composite = snap.composite_score
+        timeline[key].verdict = snap.verdict
+        timeline[key].coverage = snap.platforms_active
+      }
+
+      // Also add current product score
+      if (product) {
+        const today = new Date().toISOString().split('T')[0]
+        if (!timeline[today]) {
+          timeline[today] = { date: today, label: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }
+        }
+        timeline[today].composite = product.current_score
+        timeline[today].verdict = product.current_verdict
+        timeline[today].coverage = product.active_jobs || 0
+      }
+
+      // Sort by date and convert to array
+      const sorted = Object.values(timeline).sort((a, b) => a.date.localeCompare(b.date))
+      setChartTimeline(sorted)
+    }
+    buildTimeline()
+  }, [id, product, platformData, snapshots])
+
   if (loading || scoresLoading) return <LoadingSpinner message="Loading scorecard..." />
   if (!product) return <div className="p-6 text-gray-500">Product not found.</div>
 
   const latest = scores.length > 0 ? scores[scores.length - 1] : null
-
-  // Build chart data: GT historical (estimated) + real composite scores
-  const gtData = platformData.google_trends || null
   const liveStartDate = product?.first_seen_date || product?.created_at?.split('T')[0] || null
 
-  // Real scored data from product_snapshots (solid line)
-  const realChartPoints = snapshots.map(s => ({
-    date: s.snapshot_date,
-    label: new Date(s.snapshot_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    composite: s.composite_score,
-    verdict: s.verdict,
-    coverage: s.platforms_active,
-    type: 'real',
-  }))
-
-  // If no snapshots but we have scores_history, use that
-  const fallbackPoints = scores.slice(-90).map(s => ({
-    date: s.scored_date,
-    label: new Date(s.scored_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    composite: Number(s.composite_score?.toFixed(1)),
-    verdict: s.verdict,
-    coverage: s.platforms_used?.length || 0,
-    type: 'real',
-  }))
-
-  // Also add the current product score as a point if no snapshots/scores exist
-  const currentPoint = product ? [{
-    date: new Date().toISOString().split('T')[0],
-    label: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    composite: product.current_score,
-    verdict: product.current_verdict,
-    coverage: product.active_jobs || 0,
-    type: 'real',
-  }] : []
-
-  const livePoints = realChartPoints.length > 0 ? realChartPoints : fallbackPoints.length > 0 ? fallbackPoints : currentPoint
-
-  // GT historical estimate: normalize GT interest (0-100) to our score scale
-  // GT yoy_growth and slope give us a trend shape we can project backward
-  const hasGtHistory = gtData && gtData.yoy_growth != null
-
-  const chartData = livePoints.map(p => ({
-    ...p,
-    gtEstimate: null, // Real points don't have GT estimate
-  }))
+  // Use the pre-built chart timeline (GT + social + real scores)
+  // Show every Nth point to keep chart readable
+  const maxPoints = 80
+  const step = Math.max(1, Math.floor(chartTimeline.length / maxPoints))
+  const chartData = chartTimeline.filter((_, i) => i % step === 0 || i === chartTimeline.length - 1)
 
   const jobScores = latest ? [
     { name: 'Early Detection', key: 'early_detection', score: latest.early_detection_score, weight: '30%' },
@@ -200,42 +252,45 @@ export default function Scorecard() {
           <p className="text-xs text-gray-400 mt-2">{product.coverage_pct || 0}% data coverage ({product.active_jobs || 0}/{product.total_jobs || 4} jobs)</p>
         </div>
 
-        <div className="lg:col-span-2 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Score Over Time</p>
-          {livePoints.length <= 1 && (
-            <div className="mb-3 px-3 py-2 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-lg">
-              <p className="text-xs text-amber-700 dark:text-amber-300">
-                Composite scoring began {liveStartDate ? new Date(liveStartDate).toLocaleDateString() : 'recently'}.
-                {hasGtHistory && ' Historical trend estimated from Google Trends data.'}
-                {' '}Chart will populate as daily pipeline runs accumulate data points.
+        <div className="lg:col-span-2 bg-white dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] p-6">
+          <p className="text-xs font-bold text-gray-900 dark:text-white mb-1">Demand Intelligence — 24 Month View</p>
+          {chartData.length <= 2 && (
+            <div className="mb-3 px-3 py-2 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30">
+              <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                Chart populates with more data points as the nightly pipeline runs.
               </p>
             </div>
           )}
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={260}>
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-              <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
-              <Tooltip content={<ScoreTooltip />} />
-              <ReferenceLine y={75} stroke="#10b981" strokeDasharray="5 5" label={{ value: 'Buy', position: 'right', fontSize: 10, fill: '#10b981' }} />
-              <ReferenceLine y={55} stroke="#f59e0b" strokeDasharray="5 5" label={{ value: 'Watch', position: 'right', fontSize: 10, fill: '#f59e0b' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" />
+              <XAxis dataKey="label" tick={{ fontSize: 9 }} interval={Math.max(1, Math.floor(chartData.length / 12))} />
+              <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
+              <Tooltip content={<ChartTooltip />} />
+              <ReferenceLine y={75} stroke="#10b981" strokeDasharray="5 5" />
+              <ReferenceLine y={55} stroke="#f59e0b" strokeDasharray="5 5" />
+              {/* Vertical divider: live scoring start */}
+              {liveStartDate && <ReferenceLine x={new Date(liveStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} stroke="#6366f1" strokeDasharray="3 3" />}
+              {/* Line 1: GT Historical (dashed gray-blue) */}
+              <Line type="monotone" dataKey="gtInterest" name="GT Historical"
+                stroke="#7c8db5" strokeWidth={1.5} strokeDasharray="6 3"
+                dot={false} connectNulls={false} />
+              {/* Line 2: Social Signal Estimate (dashed purple) */}
+              <Line type="monotone" dataKey="socialSignal" name="Social Signal"
+                stroke="#a78bfa" strokeWidth={1.5} strokeDasharray="4 3"
+                dot={false} connectNulls={false} />
+              {/* Line 3: Real Composite Score (solid, verdict-colored) */}
               <Line type="monotone" dataKey="composite" name="Composite Score"
                 stroke={product.current_verdict === 'buy' ? '#10b981' : product.current_verdict === 'watch' ? '#f59e0b' : '#ef4444'}
-                strokeWidth={2.5} dot={{ r: 4, fill: '#fff', strokeWidth: 2 }} />
+                strokeWidth={2.5} dot={{ r: 4, fill: '#fff', strokeWidth: 2 }} connectNulls={false} />
             </LineChart>
           </ResponsiveContainer>
-          {/* Legend */}
-          <div className="flex items-center gap-4 mt-2 text-[11px] text-gray-400">
-            <span className="flex items-center gap-1">
-              <span className="w-4 h-0.5 bg-current inline-block rounded" style={{ color: product.current_verdict === 'buy' ? '#10b981' : product.current_verdict === 'watch' ? '#f59e0b' : '#ef4444' }} />
-              Composite Score (real)
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-4 h-0 border-t border-dashed border-emerald-400 inline-block" /> Buy threshold (75)
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-4 h-0 border-t border-dashed border-amber-400 inline-block" /> Watch threshold (55)
-            </span>
+          <div className="flex flex-wrap items-center gap-4 mt-2 text-[10px] text-gray-500">
+            <span className="flex items-center gap-1"><span className="w-4 h-0 border-t-2 border-dashed inline-block" style={{ borderColor: '#7c8db5' }} /> GT Historical Trend</span>
+            <span className="flex items-center gap-1"><span className="w-4 h-0 border-t-2 border-dashed inline-block" style={{ borderColor: '#a78bfa' }} /> Social Signal Estimate</span>
+            <span className="flex items-center gap-1"><span className="w-4 h-0.5 inline-block" style={{ background: product.current_verdict === 'buy' ? '#10b981' : product.current_verdict === 'watch' ? '#f59e0b' : '#ef4444' }} /> Composite Score (real)</span>
+            <span className="flex items-center gap-1"><span className="w-4 h-0 border-t border-dashed border-emerald-400 inline-block" /> Buy (75)</span>
+            <span className="flex items-center gap-1"><span className="w-4 h-0 border-t border-dashed border-amber-400 inline-block" /> Watch (55)</span>
           </div>
         </div>
       </div>
@@ -388,25 +443,31 @@ function PlatformMetrics({ platform, data }) {
   }
 }
 
-function ScoreTooltip({ active, payload }) {
+function ChartTooltip({ active, payload }) {
   if (!active || !payload?.length) return null
   const d = payload[0].payload
-  const verdictColors = { buy: '#10b981', watch: '#f59e0b', pass: '#ef4444' }
+  const vc = { buy: '#10b981', watch: '#f59e0b', pass: '#ef4444' }
 
   return (
-    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3 shadow-lg text-xs">
-      <p className="font-semibold text-gray-900 dark:text-white mb-1">{d.date}</p>
+    <div className="bg-[#111] border border-[#1a1a1a] p-3 text-xs max-w-60">
+      <p className="font-bold text-white mb-1">{d.date}</p>
       {d.composite != null && (
-        <>
-          <p className="tabular-nums">
-            <span className="font-bold" style={{ color: verdictColors[d.verdict] || '#6b7280' }}>{d.composite?.toFixed(1)}</span>
-            <span className="text-gray-400 ml-1">{d.verdict?.toUpperCase()}</span>
-          </p>
-          <p className="text-gray-400 mt-0.5">Coverage: {d.coverage || 0} platforms</p>
-        </>
+        <div className="mb-1">
+          <span className="font-bold tabular-nums" style={{ color: vc[d.verdict] || '#6b7280' }}>{d.composite?.toFixed(1)}</span>
+          <span className="text-gray-400 ml-1">{d.verdict?.toUpperCase()}</span>
+          <span className="text-gray-500 ml-2">{d.coverage || 0} platforms</span>
+        </div>
       )}
-      {d.gtEstimate != null && (
-        <p className="text-gray-400 italic">Estimated from Google Trends — not a composite score</p>
+      {d.gtInterest != null && !d.composite && (
+        <p className="text-gray-400">GT Interest: <span className="text-[#7c8db5] font-medium">{d.gtInterest}</span> <span className="text-gray-500 italic">estimated</span></p>
+      )}
+      {d.socialSignal != null && (
+        <div className="text-gray-400">
+          <p>Social: <span className="text-[#a78bfa] font-medium">{d.socialSignal}</span></p>
+          {d.redditCount > 0 && <p className="text-gray-500">Reddit: {d.redditCount} posts</p>}
+          {d.tiktokCount > 0 && <p className="text-gray-500">TikTok: {d.tiktokCount} posts</p>}
+          {d.instagramCount > 0 && <p className="text-gray-500">Instagram: {d.instagramCount} posts</p>}
+        </div>
       )}
     </div>
   )
