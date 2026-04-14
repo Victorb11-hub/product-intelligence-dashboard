@@ -11,6 +11,51 @@ const INTENT_COLORS = {
   5: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300',
 }
 
+const PLATFORM_BADGE = {
+  reddit:        'bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300',
+  tiktok:        'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900',
+  instagram:     'bg-fuchsia-50 dark:bg-fuchsia-900/20 text-fuchsia-700 dark:text-fuchsia-300',
+  amazon:        'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300',
+  google_trends: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300',
+  youtube:       'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300',
+  facebook:      'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300',
+  pinterest:     'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300',
+  x:             'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200',
+  alibaba:       'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-300',
+}
+
+function platformBadge(platform) {
+  return PLATFORM_BADGE[platform] || 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+}
+
+// Column labels per platform
+function colLabels(p) {
+  switch (p) {
+    case 'reddit':    return { title: 'Title',   source: 'Subreddit', engagement: 'Upvotes', replies: 'Comments' }
+    case 'tiktok':    return { title: 'Caption',  source: 'Account',   engagement: 'Views',   replies: 'Comments' }
+    case 'instagram': return { title: 'Caption',  source: 'Account',   engagement: 'Likes',   replies: 'Comments' }
+    case 'amazon':    return { title: 'Product',  source: 'Brand',     engagement: 'Reviews', replies: 'Helpful' }
+    default:          return { title: 'Title',    source: 'Source',    engagement: 'Engagement', replies: 'Replies' }
+  }
+}
+
+// Comment tab engagement label
+function commentEngLabel(p) {
+  switch (p) {
+    case 'reddit':    return 'Upvotes'
+    case 'amazon':    return 'Helpful'
+    default:          return 'Likes'
+  }
+}
+
+// Get the display title for a post depending on platform
+function postTitle(post) {
+  if (post.post_title) return post.post_title
+  const body = post.post_body || ''
+  if (body) return body.length > 80 ? body.slice(0, 80) + '...' : body
+  return '(no title)'
+}
+
 export default function PostsComments() {
   const [activeTab, setActiveTab] = useState('posts')
 
@@ -127,10 +172,54 @@ function PostsTab() {
     return <span className="text-indigo-500 ml-1">{sortAsc ? '↑' : '↓'}</span>
   }
 
+  const labels = colLabels(selectedPlatform)
+
+  // Platform-aware stats
   const totalPosts = filtered.length
   const avgSentiment = totalPosts > 0 ? filtered.reduce((s, p) => s + (p.sentiment_score || 0), 0) / totalPosts : 0
   const highIntentCount = filtered.filter(p => (p.intent_level || 1) >= 4).length
   const buyIntentPct = totalPosts > 0 ? (highIntentCount / totalPosts * 100) : 0
+  const avgUpvotes = totalPosts > 0 ? Math.round(filtered.reduce((s, p) => s + (p.upvotes || 0), 0) / totalPosts) : 0
+  const avgComments = totalPosts > 0 ? Math.round(filtered.reduce((s, p) => s + (p.comment_count || 0), 0) / totalPosts) : 0
+
+  function statsCards() {
+    switch (selectedPlatform) {
+      case 'tiktok':
+        return [
+          { label: 'Total Videos', value: totalPosts },
+          { label: 'Avg Views', value: avgUpvotes.toLocaleString() },
+          { label: 'High Intent Comments', value: highIntentCount },
+          { label: 'Avg Engagement', value: avgComments.toLocaleString() },
+        ]
+      case 'instagram':
+        return [
+          { label: 'Total Posts', value: totalPosts },
+          { label: 'Avg Likes', value: avgUpvotes.toLocaleString() },
+          { label: 'High Intent', value: highIntentCount },
+          { label: 'Avg Engagement', value: avgComments.toLocaleString() },
+        ]
+      case 'amazon':
+        const avgRating = totalPosts > 0
+          ? filtered.reduce((s, p) => {
+              const raw = p.raw_json
+              return s + (raw?.rating || raw?.stars || 0)
+            }, 0) / totalPosts
+          : 0
+        return [
+          { label: 'Total Products', value: totalPosts },
+          { label: 'Avg Rating', value: avgRating > 0 ? avgRating.toFixed(1) + ' / 5' : '—' },
+          { label: 'Total Reviews', value: filtered.reduce((s, p) => s + (p.upvotes || 0), 0).toLocaleString() },
+          { label: 'High Intent', value: highIntentCount },
+        ]
+      default: // reddit + all
+        return [
+          { label: 'Total Posts', value: totalPosts },
+          { label: 'Avg Sentiment', value: avgSentiment.toFixed(3) },
+          { label: 'High Intent (L4+5)', value: highIntentCount },
+          { label: 'Buy Intent %', value: `${buyIntentPct.toFixed(1)}%` },
+        ]
+    }
+  }
 
   if (loading) return <LoadingSpinner message="Loading posts..." />
 
@@ -138,12 +227,7 @@ function PostsTab() {
     <div>
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-5">
-        {[
-          { label: 'Total Posts', value: totalPosts },
-          { label: 'Avg Sentiment', value: avgSentiment.toFixed(3) },
-          { label: 'High Intent (L4+5)', value: highIntentCount },
-          { label: 'Buy Intent %', value: `${buyIntentPct.toFixed(1)}%` },
-        ].map(card => (
+        {statsCards().map(card => (
           <div key={card.label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
             <p className="text-xl font-bold text-gray-900 dark:text-white mt-1 tabular-nums">{card.value}</p>
@@ -177,11 +261,11 @@ function PostsTab() {
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 w-8"></th>
-                <th onClick={() => toggleSort('post_title')} className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Title<SortIcon col="post_title" /></th>
+                <th onClick={() => toggleSort('post_title')} className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">{labels.title}<SortIcon col="post_title" /></th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Product</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Subreddit</th>
-                <th onClick={() => toggleSort('upvotes')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">{selectedPlatform === 'amazon' ? 'Reviews' : 'Upvotes'}<SortIcon col="upvotes" /></th>
-                <th onClick={() => toggleSort('comment_count')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Comments<SortIcon col="comment_count" /></th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">{labels.source}</th>
+                <th onClick={() => toggleSort('upvotes')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">{labels.engagement}<SortIcon col="upvotes" /></th>
+                <th onClick={() => toggleSort('comment_count')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">{labels.replies}<SortIcon col="comment_count" /></th>
                 <th onClick={() => toggleSort('intent_level')} className="text-center px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Intent<SortIcon col="intent_level" /></th>
                 <th onClick={() => toggleSort('sentiment_score')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Sentiment<SortIcon col="sentiment_score" /></th>
                 <th onClick={() => toggleSort('relevance_score')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Relevance<SortIcon col="relevance_score" /></th>
@@ -202,6 +286,7 @@ function PostsTab() {
                     loadingComments={loadingComments === post.id}
                     onToggle={() => loadComments(post.id)}
                     intentLvl={intentLvl}
+                    selectedPlatform={selectedPlatform}
                   />
                 )
               })}
@@ -213,13 +298,21 @@ function PostsTab() {
   )
 }
 
-function PostRowWithComments({ post, isExpanded, postComments, loadingComments, onToggle, intentLvl }) {
-  // Comment summary stats
+function PostRowWithComments({ post, isExpanded, postComments, loadingComments, onToggle, intentLvl, selectedPlatform }) {
   const buyCount = postComments.filter(c => c.is_buy_intent).length
   const repeatCount = postComments.filter(c => c.is_repeat_purchase).length
   const avgIntent = postComments.length > 0
     ? (postComments.reduce((s, c) => s + (c.intent_level || 1), 0) / postComments.length).toFixed(1)
     : '—'
+
+  const plat = post.platform || ''
+  const badge = platformBadge(plat)
+  const sourceText = post.subreddit || post.author || plat
+
+  // Extract price/rating from raw_json for Amazon
+  const rawJson = post.raw_json || {}
+  const price = rawJson.price
+  const rating = rawJson.rating || rawJson.stars
 
   return (
     <>
@@ -232,17 +325,24 @@ function PostRowWithComments({ post, isExpanded, postComments, loadingComments, 
         <td className="px-4 py-3 text-gray-400">{isExpanded ? '▼' : '▶'}</td>
         <td className="px-4 py-3 max-w-md">
           <div className="flex items-start gap-2">
-            <span className="text-gray-900 dark:text-white font-medium leading-snug line-clamp-2">{post.post_title || '(no title)'}</span>
+            <span className="text-gray-900 dark:text-white font-medium leading-snug line-clamp-2">{postTitle(post)}</span>
             {post.post_url && (
               <a href={post.post_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="shrink-0 text-indigo-500 hover:text-indigo-700 text-xs">↗</a>
             )}
           </div>
+          {/* Amazon: show price + rating inline */}
+          {plat === 'amazon' && (price || rating) && (
+            <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+              {price != null && <span className="font-medium text-emerald-600">${typeof price === 'number' ? price.toFixed(2) : price}</span>}
+              {rating != null && <span className="text-amber-500">{'★'.repeat(Math.round(Number(rating) || 0))} {Number(rating).toFixed(1)}</span>}
+            </div>
+          )}
         </td>
         <td className="px-4 py-3 text-gray-600 dark:text-gray-400 text-xs">{post.products?.name || '—'}</td>
         <td className="px-4 py-3">
-          <span className="px-2 py-0.5 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 text-xs rounded-full">{post.subreddit || post.platform}</span>
+          <span className={`px-2 py-0.5 text-xs rounded-full ${badge}`}>{sourceText}</span>
         </td>
-        <td className="px-4 py-3 text-right tabular-nums text-gray-600 dark:text-gray-400">{post.upvotes || 0}</td>
+        <td className="px-4 py-3 text-right tabular-nums text-gray-600 dark:text-gray-400">{(post.upvotes || 0).toLocaleString()}</td>
         <td className="px-4 py-3 text-right tabular-nums text-gray-600 dark:text-gray-400">{post.comment_count || 0}</td>
         <td className="px-4 py-3 text-center">
           <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${INTENT_COLORS[intentLvl]}`}>L{intentLvl}</span>
@@ -310,6 +410,7 @@ function PostRowWithComments({ post, isExpanded, postComments, loadingComments, 
 }
 
 function CommentCard({ comment: c }) {
+  const plat = c.platform || ''
   return (
     <div className={`flex gap-3 p-3 rounded-lg border ${
       c.is_buy_intent ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-900/10' :
@@ -319,7 +420,7 @@ function CommentCard({ comment: c }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1 flex-wrap">
           <span className="text-xs text-gray-500 dark:text-gray-400">{c.author || 'anon'}</span>
-          <span className="text-xs text-gray-400">{c.upvotes || 0} pts</span>
+          <span className="text-xs text-gray-400">{c.upvotes || 0} {plat === 'amazon' ? 'helpful' : 'pts'}</span>
           <span className={`px-1.5 py-0.5 text-xs rounded ${INTENT_COLORS[c.intent_level || 1]}`}>L{c.intent_level || 1}</span>
           <SentimentIndicator score={c.sentiment_score} />
           {c.is_buy_intent && <span className="px-1.5 py-0.5 text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded font-medium">BUY</span>}
@@ -382,10 +483,43 @@ function CommentsTab() {
     return <span className="text-indigo-500 ml-1">{sortAsc ? '↑' : '↓'}</span>
   }
 
+  const engLabel = commentEngLabel(selectedPlatform)
+
   const buyCount = filtered.filter(c => c.is_buy_intent).length
   const problemCount = filtered.filter(c => c.is_problem_language).length
   const repeatCount = filtered.filter(c => c.is_repeat_purchase).length
   const highIntent = filtered.filter(c => (c.intent_level || 1) >= 4).length
+
+  // Platform-aware stats for comments tab
+  function commentStats() {
+    switch (selectedPlatform) {
+      case 'amazon':
+        return [
+          { label: 'Total Reviews', value: filtered.length },
+          { label: 'High Intent (L4+5)', value: highIntent },
+          { label: 'Buy Intent', value: buyCount },
+          { label: 'Problem Language', value: problemCount },
+          { label: 'Repeat Purchase', value: repeatCount },
+        ]
+      case 'tiktok':
+      case 'instagram':
+        return [
+          { label: 'Total Comments', value: filtered.length },
+          { label: 'High Intent (L4+5)', value: highIntent },
+          { label: 'Buy Intent', value: buyCount },
+          { label: 'Problem Language', value: problemCount },
+          { label: 'Repeat Purchase', value: repeatCount },
+        ]
+      default:
+        return [
+          { label: 'Total Comments', value: filtered.length },
+          { label: 'High Intent (L4+5)', value: highIntent },
+          { label: 'Buy Intent', value: buyCount },
+          { label: 'Problem Language', value: problemCount },
+          { label: 'Repeat Purchase', value: repeatCount },
+        ]
+    }
+  }
 
   if (loading) return <LoadingSpinner message="Loading comments..." />
 
@@ -393,13 +527,7 @@ function CommentsTab() {
     <div>
       {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-5">
-        {[
-          { label: 'Total Comments', value: filtered.length },
-          { label: 'High Intent (L4+5)', value: highIntent },
-          { label: 'Buy Intent', value: buyCount },
-          { label: 'Problem Language', value: problemCount },
-          { label: 'Repeat Purchase', value: repeatCount },
-        ].map(card => (
+        {commentStats().map(card => (
           <div key={card.label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
             <p className="text-xl font-bold text-gray-900 dark:text-white mt-1 tabular-nums">{card.value}</p>
@@ -417,21 +545,21 @@ function CommentsTab() {
           <option value="all">All Platforms</option>
           {platforms.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
-        <span className="text-xs text-gray-400 ml-auto">{filtered.length} comments</span>
+        <span className="text-xs text-gray-400 ml-auto">{filtered.length} {selectedPlatform === 'amazon' ? 'reviews' : 'comments'}</span>
       </div>
 
       {/* Comments table */}
       {filtered.length === 0 ? (
-        <EmptyState title="No comments" description="Comments will appear after running a Pass 2 scrape." />
+        <EmptyState title={selectedPlatform === 'amazon' ? 'No reviews' : 'No comments'} description={selectedPlatform === 'amazon' ? 'Reviews will appear after running the Amazon agent.' : 'Comments will appear after running a Pass 2 scrape.'} />
       ) : (
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                <th onClick={() => toggleSort('comment_body')} className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Comment<SortIcon col="comment_body" /></th>
+                <th onClick={() => toggleSort('comment_body')} className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">{selectedPlatform === 'amazon' ? 'Review' : 'Comment'}<SortIcon col="comment_body" /></th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Product</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Source Post</th>
-                <th onClick={() => toggleSort('upvotes')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">{selectedPlatform === 'amazon' ? 'Helpful' : 'Upvotes'}<SortIcon col="upvotes" /></th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">{selectedPlatform === 'amazon' ? 'Source Product' : 'Source Post'}</th>
+                <th onClick={() => toggleSort('upvotes')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">{engLabel}<SortIcon col="upvotes" /></th>
                 <th onClick={() => toggleSort('intent_level')} className="text-center px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Intent<SortIcon col="intent_level" /></th>
                 <th onClick={() => toggleSort('sentiment_score')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Sentiment<SortIcon col="sentiment_score" /></th>
                 <th className="text-center px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Flags</th>
