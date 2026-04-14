@@ -404,7 +404,7 @@ function PlatformMetrics({ platform, data }) {
           <span>Seasonal: {data.seasonal_pattern}</span>
         </>
       )
-    case 'amazon': case 'walmart': case 'etsy':
+    case 'walmart': case 'etsy':
       return (
         <>
           {data.bestseller_rank && <span>BSR: #{data.bestseller_rank}</span>}
@@ -413,6 +413,43 @@ function PlatformMetrics({ platform, data }) {
           {data.price && <span>${Number(data.price).toFixed(2)}</span>}
           {data.out_of_stock_flag && <span className="text-red-500 font-medium">OOS</span>}
         </>
+      )
+    case 'amazon':
+      return (
+        <div className="space-y-2 w-full">
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            {data.bestseller_rank && <span>BSR: #{data.bestseller_rank?.toLocaleString()}</span>}
+            <span>Reviews: {data.review_count?.toLocaleString()}</span>
+            <span>Rating: {data.avg_rating?.toFixed(1)} / 5</span>
+            {data.price && <span>${Number(data.price).toFixed(2)}</span>}
+            {data.satisfaction_score > 0 && <span>Satisfaction: {data.satisfaction_score?.toFixed(0)}/100</span>}
+            {data.out_of_stock_flag && <span className="text-red-500 font-medium">OOS</span>}
+          </div>
+          {(data.five_star_pct > 0 || data.one_star_pct > 0) && (
+            <div className="space-y-0.5 text-[10px]">
+              {[
+                { label: '5★', pct: data.five_star_pct, color: 'bg-emerald-500' },
+                { label: '4★', pct: data.four_star_pct, color: 'bg-emerald-400' },
+                { label: '3★', pct: data.three_star_pct, color: 'bg-amber-400' },
+                { label: '2★', pct: data.two_star_pct, color: 'bg-orange-400' },
+                { label: '1★', pct: data.one_star_pct, color: 'bg-red-500' },
+              ].map(row => (
+                <div key={row.label} className="flex items-center gap-1.5">
+                  <span className="w-5 text-gray-500 text-right">{row.label}</span>
+                  <div className="flex-1 h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div className={`h-full ${row.color} rounded-full`} style={{ width: `${Math.min(row.pct || 0, 100)}%` }} />
+                  </div>
+                  <span className="w-8 text-right text-gray-500">{(row.pct || 0).toFixed(0)}%</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {data.one_star_pct > 15 && (
+            <div className="flex items-center gap-1.5 text-[10px] text-red-600 dark:text-red-400 font-medium bg-red-50 dark:bg-red-900/20 rounded px-2 py-1">
+              <span>High negative review rate — investigate before sourcing</span>
+            </div>
+          )}
+        </div>
       )
     case 'alibaba':
       return (

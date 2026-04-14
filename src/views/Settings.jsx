@@ -180,6 +180,14 @@ function PipelineSection() {
         </div>
       </div>
       <div>
+        <h3 className="text-xs font-bold text-gray-900 dark:text-white mb-3">Amazon Settings</h3>
+        <p className="text-[10px] text-gray-400 mb-3">Controls how the Amazon agent searches and filters products. Changes take effect on the next pipeline run.</p>
+        <SettingSlider label="Search results to pull" value={val('amazon_search_results')} min={10} max={100} step={5} format={v => v.toFixed(0)} onChange={v => update('amazon_search_results', v)} />
+        <SettingSlider label="Top N by review count" value={val('amazon_top_n')} min={5} max={20} step={1} format={v => v.toFixed(0)} onChange={v => update('amazon_top_n', v)} />
+        <SettingSlider label="Min reviews to include product" value={val('amazon_min_reviews')} min={0} max={5000} step={100} format={v => v.toFixed(0)} onChange={v => update('amazon_min_reviews', v)} />
+        <SettingSlider label="1★ alert threshold (%)" value={val('amazon_one_star_alert_threshold')} min={1} max={10} step={0.5} format={v => `${v.toFixed(1)}%`} onChange={v => update('amazon_one_star_alert_threshold', v)} />
+      </div>
+      <div>
         <h3 className="text-xs font-bold text-gray-900 dark:text-white mb-3">Data Lookback Windows</h3>
         <p className="text-[10px] text-gray-400 mb-3">How far back each platform pulls content per run. Longer = more data but higher cost. Use 30 days for initial run then reduce to 7-14 days ongoing.</p>
         <div className="space-y-1">
