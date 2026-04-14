@@ -57,7 +57,7 @@ export default function Scorecard() {
 
       // Social signals (reddit, tiktok, instagram, youtube, x, facebook)
       const { data: social } = await supabase.from('signals_social')
-        .select('platform, scraped_date, mention_count, sentiment_score, velocity, avg_intent_score, total_upvotes, total_comment_count, high_intent_comment_count, buy_intent_comment_count, data_quality_score')
+        .select('platform, scraped_date, mention_count, sentiment_score, velocity, avg_intent_score, total_upvotes, total_comment_count, high_intent_comment_count, buy_intent_comment_count, data_quality_score, creator_tier_score, total_views')
         .eq('product_id', id).order('scraped_date', { ascending: false }).limit(20)
       for (const row of (social || [])) {
         if (!results[row.platform]) results[row.platform] = row
@@ -73,7 +73,7 @@ export default function Scorecard() {
 
       // Retail signals (amazon, walmart, etsy)
       const { data: retail } = await supabase.from('signals_retail')
-        .select('platform, scraped_date, bestseller_rank, review_count, review_sentiment, price, out_of_stock_flag')
+        .select('platform, scraped_date, bestseller_rank, review_count, review_sentiment, price, out_of_stock_flag, avg_rating, satisfaction_score, five_star_pct, four_star_pct, three_star_pct, two_star_pct, one_star_pct, total_ratings, review_velocity, bsr_trend, rating_trend')
         .eq('product_id', id).order('scraped_date', { ascending: false }).limit(10)
       for (const row of (retail || [])) {
         if (!results[row.platform]) results[row.platform] = row
@@ -295,6 +295,9 @@ export default function Scorecard() {
         </div>
       </div>
 
+      {/* Intelligence Summary */}
+      <IntelligenceSummary product={product} platformData={platformData} />
+
       {/* Platform Signals — Dynamic */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
@@ -478,6 +481,171 @@ function PlatformMetrics({ platform, data }) {
         </>
       )
   }
+}
+
+// ════════════════════════════════════════════════
+// INTELLIGENCE SUMMARY
+// ════════════════════════════════════════════════
+function IntelligenceSummary({ product, platformData }) {
+  if (!product) return null
+  const activePlatforms = Object.keys(platformData)
+  if (activePlatforms.length === 0) return null
+
+  const rawScore = product.raw_score || 0
+  const gtSlope = platformData.google_trends?.slope_24m
+  const fad = product.fad_flag
+
+  // Card border color
+  let borderColor = 'border-amber-400 dark:border-amber-500'
+  let borderBg = 'bg-amber-50/50 dark:bg-amber-900/5'
+  if (rawScore > 60 && gtSlope > 0) {
+    borderColor = 'border-emerald-400 dark:border-emerald-500'
+    borderBg = 'bg-emerald-50/50 dark:bg-emerald-900/5'
+  } else if (rawScore < 45 || fad) {
+    borderColor = 'border-red-400 dark:border-red-500'
+    borderBg = 'bg-red-50/50 dark:bg-red-900/5'
+  }
+
+  // Build overall summary
+  const summaryParts = []
+  const gt = platformData.google_trends
+  const reddit = platformData.reddit
+  const tiktok = platformData.tiktok
+  const instagram = platformData.instagram
+  const amazon = platformData.amazon
+
+  if (gt && gt.slope_24m > 0.003 && gt.yoy_growth > 0.5) {
+    summaryParts.push(`Google Trends confirms sustained growth with ${(gt.yoy_growth * 100).toFixed(0)}% YoY increase over 24 months.`)
+  } else if (gt && gt.slope_24m > 0) {
+    summaryParts.push(`Google Trends shows moderate upward interest over 24 months.`)
+  }
+
+  if (tiktok && (tiktok.total_views > 1000000 || tiktok.total_upvotes > 100000)) {
+    const views = tiktok.total_views || tiktok.total_upvotes || 0
+    summaryParts.push(`TikTok shows strong viral momentum with ${(views / 1000000).toFixed(1)}M ${tiktok.total_views ? 'views' : 'engagement'}.`)
+  }
+
+  if (amazon && amazon.review_count > 10000) {
+    const sat = amazon.satisfaction_score || (amazon.avg_rating ? Math.round(amazon.avg_rating / 5 * 100) : 0)
+    summaryParts.push(`Amazon confirms a healthy buyer base with ${(amazon.review_count / 1000).toFixed(0)}K+ reviews and ${sat}% satisfaction.`)
+  }
+
+  if (reddit && reddit.avg_intent_score < 0.3 && reddit.mention_count > 20) {
+    summaryParts.push(`Reddit shows awareness but purchase intent is still moderate — community is discussing, not yet buying.`)
+  } else if (reddit && reddit.avg_intent_score >= 0.3) {
+    summaryParts.push(`Reddit shows active purchase consideration with strong intent signals.`)
+  }
+
+  if (summaryParts.length === 0) {
+    summaryParts.push('Limited data across platforms. More pipeline runs needed to build a complete picture.')
+  }
+
+  // Per-platform one-liners
+  function platformInsight(key) {
+    const d = platformData[key]
+    if (!d) return null
+
+    switch (key) {
+      case 'reddit': {
+        if (d.sentiment_score < -0.2) return { text: 'Community has concerns — check negative posts for patterns', status: 'concern' }
+        if (d.mention_count > 100 && d.avg_intent_score > 0.3) return { text: `Strong community interest with buying intent — ${d.mention_count} posts, ${d.high_intent_comment_count || 0} buy-intent comments`, status: 'good' }
+        if (d.mention_count > 50 && d.avg_intent_score > 0.2) return { text: `Moderate discussion in awareness phase — ${d.mention_count} posts found`, status: 'watch' }
+        if (d.velocity < -0.3) return { text: 'Discussion volume declining week over week', status: 'concern' }
+        if (d.mention_count > 20) return { text: `${d.mention_count} posts found — early awareness building`, status: 'watch' }
+        return { text: `${d.mention_count || 0} posts found — limited discussion`, status: 'watch' }
+      }
+      case 'tiktok': {
+        const views = d.total_views || 0
+        const mentions = d.mention_count || 0
+        const avgViews = mentions > 0 ? views / mentions : 0
+        if (views > 10000000) return { text: `Viral momentum confirmed — ${(views / 1000000).toFixed(1)}M total views across ${mentions} videos`, status: 'good' }
+        if (avgViews > 500000) return { text: `High-reach content — averaging ${(avgViews / 1000).toFixed(0)}K views per video`, status: 'good' }
+        if (d.creator_tier_score > 0.7) return { text: 'Macro creators featuring this product — strong signal', status: 'good' }
+        if (views > 1000000) return { text: `${(views / 1000000).toFixed(1)}M total views — growing creator adoption`, status: 'watch' }
+        return { text: `${mentions} videos found with ${(views / 1000).toFixed(0)}K total views`, status: 'watch' }
+      }
+      case 'instagram': {
+        const mentions = d.mention_count || 0
+        const avgEng = mentions > 0 ? (d.total_upvotes || 0) / mentions : 0
+        if (d.avg_intent_score > 0.2) return { text: `Captions showing purchase consideration signals across ${mentions} posts`, status: 'good' }
+        if (avgEng >= 50) return { text: `${mentions} posts with strong engagement found`, status: 'good' }
+        if (avgEng < 10 && mentions > 0) return { text: 'Low engagement — product not resonating on Instagram yet', status: 'concern' }
+        return { text: `${mentions} posts found — monitoring engagement levels`, status: 'watch' }
+      }
+      case 'amazon': {
+        const parts = []
+        let status = 'watch'
+        const sat = d.satisfaction_score || 0
+        if (sat > 85) { parts.push(`Buyers are very happy — ${d.five_star_pct?.toFixed(0) || '?'}% five star reviews`); status = 'good' }
+        if (d.review_count > 50000) { parts.push(`${(d.review_count / 1000).toFixed(0)}K+ confirmed buyer base`); status = 'good' }
+        if (d.one_star_pct > 10) { parts.push(`${d.one_star_pct?.toFixed(0)}% negative reviews — investigate quality`); status = 'concern' }
+        if (d.review_velocity > 0) parts.push(`${d.review_velocity?.toLocaleString()} new reviews since last check`)
+        if (d.bsr_trend === 'rising') parts.push('Climbing bestseller ranks')
+        if (d.bsr_trend === 'declining') { parts.push('Falling bestseller ranks — sales may be slowing'); status = 'concern' }
+        return { text: parts.join('. ') || `${d.review_count?.toLocaleString() || 0} reviews tracked`, status }
+      }
+      case 'google_trends': {
+        const parts = []
+        let status = 'watch'
+        if (d.slope_24m > 0.005 && d.yoy_growth > 1) {
+          parts.push(`Strong sustained growth — ${(d.yoy_growth * 100).toFixed(0)}% YoY increase over 24 months`)
+          status = 'good'
+        } else if (d.slope_24m > 0) {
+          parts.push(`Moderate upward trend — ${(d.yoy_growth * 100).toFixed(0)}% YoY growth`)
+          status = 'good'
+        } else if (d.slope_24m < -0.003) {
+          parts.push('Search interest declining — demand may be fading')
+          status = 'concern'
+        }
+        if (!d.breakout_flag) parts.push('Not a fad — consistent long-term pattern')
+        if (d.seasonal_pattern && d.seasonal_pattern !== 'none') parts.push(`Seasonal pattern: ${d.seasonal_pattern}`)
+        return { text: parts.join('. ') || 'Trend data available', status }
+      }
+      default:
+        return { text: `${d.mention_count || 0} data points collected`, status: 'watch' }
+    }
+  }
+
+  const STATUS_DOT = {
+    good: 'bg-emerald-500',
+    watch: 'bg-amber-400',
+    concern: 'bg-red-500',
+  }
+
+  const PLATFORM_LABELS = {
+    reddit: 'Reddit', tiktok: 'TikTok', instagram: 'Instagram',
+    amazon: 'Amazon', google_trends: 'Google Trends',
+    youtube: 'YouTube', x: 'X', facebook: 'Facebook',
+    pinterest: 'Pinterest', alibaba: 'Alibaba',
+  }
+
+  return (
+    <div className={`rounded-xl border-l-4 ${borderColor} ${borderBg} border border-gray-200 dark:border-gray-700 p-5 mb-6`}>
+      <p className="text-xs font-bold text-gray-900 dark:text-white mb-3">Intelligence Summary</p>
+
+      {/* Overall verdict summary */}
+      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+        {summaryParts.join(' ')}
+      </p>
+
+      {/* Per-platform one-liners */}
+      <div className="space-y-1.5">
+        {['google_trends', 'amazon', 'reddit', 'tiktok', 'instagram', 'youtube', 'facebook', 'pinterest', 'alibaba', 'x']
+          .filter(key => platformData[key])
+          .map(key => {
+            const insight = platformInsight(key)
+            if (!insight) return null
+            return (
+              <div key={key} className="flex items-start gap-2 text-xs">
+                <div className={`w-2 h-2 rounded-full mt-1 shrink-0 ${STATUS_DOT[insight.status]}`} />
+                <span className="font-medium text-gray-600 dark:text-gray-400 w-24 shrink-0">{PLATFORM_LABELS[key]}:</span>
+                <span className="text-gray-700 dark:text-gray-300">{insight.text}</span>
+              </div>
+            )
+          })}
+      </div>
+    </div>
+  )
 }
 
 function ChartTooltip({ active, payload }) {
