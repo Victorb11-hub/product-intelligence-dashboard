@@ -180,7 +180,7 @@ function PostsTab() {
                 <th onClick={() => toggleSort('post_title')} className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Title<SortIcon col="post_title" /></th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Product</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Subreddit</th>
-                <th onClick={() => toggleSort('upvotes')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Upvotes<SortIcon col="upvotes" /></th>
+                <th onClick={() => toggleSort('upvotes')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">{selectedPlatform === 'amazon' ? 'Reviews' : 'Upvotes'}<SortIcon col="upvotes" /></th>
                 <th onClick={() => toggleSort('comment_count')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Comments<SortIcon col="comment_count" /></th>
                 <th onClick={() => toggleSort('intent_level')} className="text-center px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Intent<SortIcon col="intent_level" /></th>
                 <th onClick={() => toggleSort('sentiment_score')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Sentiment<SortIcon col="sentiment_score" /></th>
@@ -431,7 +431,7 @@ function CommentsTab() {
                 <th onClick={() => toggleSort('comment_body')} className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Comment<SortIcon col="comment_body" /></th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Product</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Source Post</th>
-                <th onClick={() => toggleSort('upvotes')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Upvotes<SortIcon col="upvotes" /></th>
+                <th onClick={() => toggleSort('upvotes')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">{selectedPlatform === 'amazon' ? 'Helpful' : 'Upvotes'}<SortIcon col="upvotes" /></th>
                 <th onClick={() => toggleSort('intent_level')} className="text-center px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Intent<SortIcon col="intent_level" /></th>
                 <th onClick={() => toggleSort('sentiment_score')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Sentiment<SortIcon col="sentiment_score" /></th>
                 <th className="text-center px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Flags</th>
