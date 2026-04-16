@@ -73,7 +73,7 @@ export default function Scorecard() {
 
       // Retail signals (amazon, walmart, etsy)
       const { data: retail } = await supabase.from('signals_retail')
-        .select('platform, scraped_date, bestseller_rank, review_count, review_sentiment, price, out_of_stock_flag, avg_rating, satisfaction_score, five_star_pct, four_star_pct, three_star_pct, two_star_pct, one_star_pct, total_ratings, review_velocity, bsr_trend, rating_trend')
+        .select('platform, scraped_date, bestseller_rank, review_count, review_sentiment, price, out_of_stock_flag, avg_rating, satisfaction_score, five_star_pct, four_star_pct, three_star_pct, two_star_pct, one_star_pct, total_ratings, review_velocity, bsr_trend, rating_trend, monthly_purchase_volume, bsr_rank_actual, bsr_category, ai_review_summary, ai_review_sentiment, review_velocity_monthly')
         .eq('product_id', id).order('scraped_date', { ascending: false }).limit(10)
       for (const row of (retail || [])) {
         if (!results[row.platform]) results[row.platform] = row
@@ -237,6 +237,9 @@ export default function Scorecard() {
           Log Sourcing Decision
         </button>
       </div>
+
+      {/* Confidence Banner */}
+      <ConfidenceBanner product={product} />
 
       {/* Score + Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
@@ -419,40 +422,7 @@ function PlatformMetrics({ platform, data }) {
       )
     case 'amazon':
       return (
-        <div className="space-y-2 w-full">
-          <div className="flex flex-wrap gap-x-4 gap-y-1">
-            {data.bestseller_rank && <span>BSR: #{data.bestseller_rank?.toLocaleString()}</span>}
-            <span>Reviews: {data.review_count?.toLocaleString()}</span>
-            <span>Rating: {data.avg_rating?.toFixed(1)} / 5</span>
-            {data.price && <span>${Number(data.price).toFixed(2)}</span>}
-            {data.satisfaction_score > 0 && <span>Satisfaction: {data.satisfaction_score?.toFixed(0)}/100</span>}
-            {data.out_of_stock_flag && <span className="text-red-500 font-medium">OOS</span>}
-          </div>
-          {(data.five_star_pct > 0 || data.one_star_pct > 0) && (
-            <div className="space-y-0.5 text-[10px]">
-              {[
-                { label: '5★', pct: data.five_star_pct, color: 'bg-emerald-500' },
-                { label: '4★', pct: data.four_star_pct, color: 'bg-emerald-400' },
-                { label: '3★', pct: data.three_star_pct, color: 'bg-amber-400' },
-                { label: '2★', pct: data.two_star_pct, color: 'bg-orange-400' },
-                { label: '1★', pct: data.one_star_pct, color: 'bg-red-500' },
-              ].map(row => (
-                <div key={row.label} className="flex items-center gap-1.5">
-                  <span className="w-5 text-gray-500 text-right">{row.label}</span>
-                  <div className="flex-1 h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div className={`h-full ${row.color} rounded-full`} style={{ width: `${Math.min(row.pct || 0, 100)}%` }} />
-                  </div>
-                  <span className="w-8 text-right text-gray-500">{(row.pct || 0).toFixed(0)}%</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {data.one_star_pct > 15 && (
-            <div className="flex items-center gap-1.5 text-[10px] text-red-600 dark:text-red-400 font-medium bg-red-50 dark:bg-red-900/20 rounded px-2 py-1">
-              <span>High negative review rate — investigate before sourcing</span>
-            </div>
-          )}
-        </div>
+        <AmazonSignalCard data={data} />
       )
     case 'alibaba':
       return (
@@ -486,6 +456,179 @@ function PlatformMetrics({ platform, data }) {
 // ════════════════════════════════════════════════
 // INTELLIGENCE SUMMARY
 // ════════════════════════════════════════════════
+function ConfidenceBanner({ product }) {
+  const level = product?.confidence_level || null
+  const reason = product?.confidence_reason || ''
+  const totalComments = product?.total_comments_scored || 0
+  const platforms = product?.active_platform_count || 0
+  // Pull purchase signal aggregate from sum across platforms (rough estimate from product)
+  // Not stored on product directly; compute approx from confidence_reason or use 0 fallback
+  const purchaseSignals = (() => {
+    const m = (reason || '').match(/(\d+)\s*purchase\s*signals/i)
+    return m ? parseInt(m[1]) : 0
+  })()
+
+  // Thresholds (mirror env defaults — display-only)
+  const HIGH_COMMENTS = 5000
+  const HIGH_PLATFORMS = 3
+  const HIGH_PURCHASE = 100
+
+  const config = {
+    high: {
+      label: 'HIGH CONFIDENCE',
+      headline: 'High confidence — sourcing decision safe',
+      bg: 'bg-emerald-50 dark:bg-emerald-900/10',
+      border: 'border-emerald-300 dark:border-emerald-700',
+      badge: 'bg-emerald-600 text-white',
+      bar: 'bg-emerald-500',
+    },
+    medium: {
+      label: 'MEDIUM CONFIDENCE',
+      headline: 'Medium confidence — monitor for more data',
+      bg: 'bg-amber-50 dark:bg-amber-900/10',
+      border: 'border-amber-300 dark:border-amber-700',
+      badge: 'bg-amber-500 text-white',
+      bar: 'bg-amber-500',
+    },
+    low: {
+      label: 'LOW DATA',
+      headline: 'Low data — insufficient evidence',
+      bg: 'bg-red-50 dark:bg-red-900/10',
+      border: 'border-red-300 dark:border-red-700',
+      badge: 'bg-red-600 text-white',
+      bar: 'bg-red-500',
+    },
+  }
+  const cfg = config[level] || {
+    label: 'NO DATA',
+    headline: 'Confidence not yet calculated',
+    bg: 'bg-gray-50 dark:bg-gray-800',
+    border: 'border-gray-300 dark:border-gray-700',
+    badge: 'bg-gray-500 text-white',
+    bar: 'bg-gray-400',
+  }
+
+  const bars = [
+    { label: 'Comments', current: totalComments, target: HIGH_COMMENTS },
+    { label: 'Platforms', current: platforms, target: HIGH_PLATFORMS },
+    { label: 'Purchase signals', current: purchaseSignals, target: HIGH_PURCHASE },
+  ]
+
+  return (
+    <div className={`rounded-xl border-2 ${cfg.border} ${cfg.bg} p-5 mb-4`}>
+      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <span className={`px-3 py-1 rounded text-xs font-bold uppercase tracking-wide ${cfg.badge}`}>{cfg.label}</span>
+          <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{cfg.headline}</span>
+        </div>
+      </div>
+
+      {reason && (
+        <p className="text-xs text-gray-600 dark:text-gray-400 mb-3 leading-relaxed">{reason}</p>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {bars.map(b => {
+          const pct = Math.min(100, (b.current / Math.max(b.target, 1)) * 100)
+          const isFull = pct >= 100
+          return (
+            <div key={b.label}>
+              <div className="flex items-center justify-between mb-1 text-[11px]">
+                <span className="text-gray-600 dark:text-gray-400 font-medium">{b.label}</span>
+                <span className={`tabular-nums ${isFull ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>
+                  {b.current.toLocaleString()} / {b.target.toLocaleString()}
+                </span>
+              </div>
+              <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div className={`h-full ${isFull ? 'bg-emerald-500' : cfg.bar} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function AmazonSignalCard({ data }) {
+  const [showSummary, setShowSummary] = useState(false)
+  const bsrDisplay = data.bsr_rank_actual > 0
+    ? `#${data.bsr_rank_actual.toLocaleString()}${data.bsr_category ? ` in ${data.bsr_category}` : ''}`
+    : data.bestseller_rank ? `#${data.bestseller_rank.toLocaleString()}` : null
+
+  return (
+    <div className="space-y-2 w-full">
+      {/* Row 1: Key metrics */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {bsrDisplay && <span>BSR: {bsrDisplay}</span>}
+        <span>Reviews: {data.review_count?.toLocaleString()}</span>
+        <span>Rating: {data.avg_rating?.toFixed(1)} / 5</span>
+        {data.price && <span>${Number(data.price).toFixed(2)}</span>}
+        {data.out_of_stock_flag && <span className="text-red-500 font-medium">OOS</span>}
+      </div>
+
+      {/* Row 2: New enriched metrics */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+        {data.monthly_purchase_volume > 0 && (
+          <span className="text-emerald-600 dark:text-emerald-400 font-medium">{data.monthly_purchase_volume.toLocaleString()}/month bought</span>
+        )}
+        {data.satisfaction_score > 0 && <span>Satisfaction: {data.satisfaction_score?.toFixed(0)}/100</span>}
+        {data.review_velocity_monthly > 0 && <span>{Math.round(data.review_velocity_monthly)} reviews/month</span>}
+        {data.bsr_trend && data.bsr_trend !== 'unknown' && data.bsr_trend !== 'stable' && (
+          <span className={data.bsr_trend === 'rising' ? 'text-emerald-600' : 'text-red-500'}>BSR {data.bsr_trend}</span>
+        )}
+      </div>
+
+      {/* Rating distribution bars */}
+      {(data.five_star_pct > 0 || data.one_star_pct > 0) && (
+        <div className="space-y-0.5 text-[10px]">
+          {[
+            { label: '5★', pct: data.five_star_pct, color: 'bg-emerald-500' },
+            { label: '4★', pct: data.four_star_pct, color: 'bg-emerald-400' },
+            { label: '3★', pct: data.three_star_pct, color: 'bg-amber-400' },
+            { label: '2★', pct: data.two_star_pct, color: 'bg-orange-400' },
+            { label: '1★', pct: data.one_star_pct, color: 'bg-red-500' },
+          ].map(row => (
+            <div key={row.label} className="flex items-center gap-1.5">
+              <span className="w-5 text-gray-500 text-right">{row.label}</span>
+              <div className="flex-1 h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div className={`h-full ${row.color} rounded-full`} style={{ width: `${Math.min(row.pct || 0, 100)}%` }} />
+              </div>
+              <span className="w-8 text-right text-gray-500">{(row.pct || 0).toFixed(0)}%</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* AI Review Summary */}
+      {data.ai_review_summary && (
+        <div className="text-[10px]">
+          <button onClick={() => setShowSummary(!showSummary)} className="text-indigo-500 hover:text-indigo-700 font-medium">
+            {showSummary ? 'Hide' : 'Show'} AI Review Summary
+            {data.ai_review_sentiment != null && (
+              <span className={`ml-2 ${data.ai_review_sentiment > 0.1 ? 'text-emerald-500' : data.ai_review_sentiment < -0.1 ? 'text-red-500' : 'text-gray-400'}`}>
+                ({data.ai_review_sentiment > 0 ? '+' : ''}{data.ai_review_sentiment?.toFixed(2)})
+              </span>
+            )}
+          </button>
+          {showSummary && (
+            <p className="mt-1 text-gray-600 dark:text-gray-400 leading-relaxed bg-gray-50 dark:bg-gray-800 rounded p-2">
+              {data.ai_review_summary}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* 1-star warning */}
+      {data.one_star_pct > 15 && (
+        <div className="flex items-center gap-1.5 text-[10px] text-red-600 dark:text-red-400 font-medium bg-red-50 dark:bg-red-900/20 rounded px-2 py-1">
+          <span>High negative review rate — investigate before sourcing</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function IntelligenceSummary({ product, platformData }) {
   if (!product) return null
   const activePlatforms = Object.keys(platformData)

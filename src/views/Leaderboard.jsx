@@ -15,12 +15,13 @@ export default function Leaderboard() {
   const [lifecycleFilter, setLifecycleFilter] = useState('all')
   const [minScore, setMinScore] = useState(0)
   const [fadOnly, setFadOnly] = useState(false)
+  const [sortBy, setSortBy] = useState('score_x_confidence')
 
   const categories = useMemo(() => [...new Set(products.map(p => p.category))].sort(), [products])
   const lifecycles = useMemo(() => [...new Set(products.map(p => p.lifecycle_phase))].sort(), [products])
 
   const filtered = useMemo(() => {
-    return products.filter(p => {
+    const filtered = products.filter(p => {
       if (categoryFilter !== 'all' && p.category !== categoryFilter) return false
       if (verdictFilter !== 'all' && p.current_verdict !== verdictFilter) return false
       if (lifecycleFilter !== 'all' && p.lifecycle_phase !== lifecycleFilter) return false
@@ -28,7 +29,24 @@ export default function Leaderboard() {
       if (fadOnly && !p.fad_flag) return false
       return true
     })
-  }, [products, categoryFilter, verdictFilter, lifecycleFilter, minScore, fadOnly])
+    const confMult = (lvl) => lvl === 'high' ? 1.0 : lvl === 'medium' ? 0.7 : lvl === 'low' ? 0.4 : 0.4
+    return [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'score':
+          return (b.current_score || 0) - (a.current_score || 0)
+        case 'score_x_confidence':
+          return (b.current_score || 0) * confMult(b.confidence_level) - (a.current_score || 0) * confMult(a.confidence_level)
+        case 'most_comments':
+          return (b.total_comments_scored || 0) - (a.total_comments_scored || 0)
+        case 'most_purchase':
+          return (b.purchase_signal_count || 0) - (a.purchase_signal_count || 0)
+        case 'newest_data':
+          return new Date(b.last_scraped_at || 0) - new Date(a.last_scraped_at || 0)
+        default:
+          return 0
+      }
+    })
+  }, [products, categoryFilter, verdictFilter, lifecycleFilter, minScore, fadOnly, sortBy])
 
   const daysSince = (dateStr) => {
     const d = new Date(dateStr)
@@ -99,6 +117,19 @@ export default function Leaderboard() {
           />
           Fad Flags Only
         </label>
+
+        <select
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value)}
+          className="text-sm border border-gray-300 dark:border-gray-600 px-3 py-1.5 bg-white dark:bg-[#111] text-gray-900 dark:text-white text-xs ml-auto"
+          title="Sort products"
+        >
+          <option value="score_x_confidence">★ Score × Confidence</option>
+          <option value="score">Score</option>
+          <option value="most_comments">Most Comments</option>
+          <option value="most_purchase">Most Purchase Signals</option>
+          <option value="newest_data">Newest Data</option>
+        </select>
       </div>
 
       {/* Products */}
@@ -119,11 +150,14 @@ export default function Leaderboard() {
                   className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] p-4 cursor-pointer active:bg-indigo-50 dark:active:bg-indigo-900/10"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-[15px] text-gray-900 dark:text-white">{product.name}</span>
                       {product.fad_flag && <span className="px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-[11px] rounded font-medium">FAD</span>}
                     </div>
-                    <VerdictBadge verdict={product.current_verdict} />
+                    <div className="flex items-center gap-1.5">
+                      <VerdictBadge verdict={product.current_verdict} />
+                      <ConfidenceBadge level={product.confidence_level} reason={product.confidence_reason} />
+                    </div>
                   </div>
                   <div className="mb-1"><ScoreBar score={product.current_score} size="lg" /></div>
                   {product.raw_score > 0 && product.raw_score !== product.current_score && (
@@ -149,6 +183,7 @@ export default function Leaderboard() {
                   <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Category</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 w-52">Score</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Verdict</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Confidence</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 w-36">Coverage</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Phase</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Days</th>
@@ -181,6 +216,7 @@ export default function Leaderboard() {
                         )}
                       </td>
                       <td className="px-4 py-3"><VerdictBadge verdict={product.current_verdict} /></td>
+                      <td className="px-4 py-3"><ConfidenceBadge level={product.confidence_level} reason={product.confidence_reason} /></td>
                       <td className="px-4 py-3">
                         <CoverageBar active={aj} total={tj} pct={covPct} />
                       </td>
@@ -208,6 +244,23 @@ function ScoreChange({ value }) {
   return (
     <span className={positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
       {positive ? '▲' : '▼'} {Math.abs(value).toFixed(1)}
+    </span>
+  )
+}
+
+function ConfidenceBadge({ level, reason }) {
+  const config = {
+    high:   { label: 'HIGH CONF', cls: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' },
+    medium: { label: 'MED CONF',  cls: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' },
+    low:    { label: 'LOW DATA',  cls: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' },
+  }
+  const c = config[level] || { label: 'NO DATA', cls: 'bg-gray-100 dark:bg-gray-800 text-gray-500' }
+  return (
+    <span
+      title={reason || 'Confidence not yet calculated'}
+      className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide cursor-help ${c.cls}`}
+    >
+      {c.label}
     </span>
   )
 }

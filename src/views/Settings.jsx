@@ -137,13 +137,40 @@ function UsersSection() {
 // ── PIPELINE ──
 function PipelineSection() {
   const [settings, setSettings] = useState({}); const [loading, setLoading] = useState(true)
+  const [schedulerStatus, setSchedulerStatus] = useState(null)
+  const [recentRuns, setRecentRuns] = useState([])
 
   const load = useCallback(async () => {
     const { data } = await supabase.from('scoring_settings').select('*')
     const map = {}; (data || []).forEach(r => { map[r.setting_key] = r })
     setSettings(map); setLoading(false)
+    // Load scheduler status from API
+    try {
+      const r = await fetch('http://localhost:8000/scheduler/status')
+      if (r.ok) setSchedulerStatus(await r.json())
+    } catch {}
+    // Load recent pipeline runs
+    const { data: runs } = await supabase.from('pipeline_runs')
+      .select('*').order('started_at', { ascending: false }).limit(10)
+    setRecentRuns(runs || [])
   }, [])
   useEffect(() => { load() }, [load])
+
+  const triggerRun = async (backfill = false) => {
+    if (backfill && !window.confirm(
+      'This will pull 365 days of historical data. ' +
+      'This run will take longer and use more Apify credits than a normal run. Continue?'
+    )) return
+    try {
+      const r = await fetch('http://localhost:8000/run/all', { method: 'POST' })
+      if (r.ok) {
+        alert(backfill ? 'Backfill triggered' : 'Manual run triggered')
+        setTimeout(load, 2000)
+      } else {
+        alert('Failed to trigger run')
+      }
+    } catch (e) { alert('Failed to reach API: ' + e.message) }
+  }
 
   const update = async (key, value) => {
     const v = parseFloat(value); if (isNaN(v)) return
@@ -154,13 +181,109 @@ function PipelineSection() {
   const boolVal = (key) => (settings[key]?.setting_value ?? 1) === 1
 
   if (loading) return <LoadingSpinner />
+
+  const fmtDate = (iso) => {
+    if (!iso) return '—'
+    try { return new Date(iso).toLocaleString() } catch { return iso }
+  }
+  const fmtDuration = (secs) => {
+    if (!secs) return '—'
+    const m = Math.floor(secs / 60), s = secs % 60
+    return m > 0 ? `${m}m ${s}s` : `${s}s`
+  }
+  const STATUS_BADGE = {
+    completed: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300',
+    running:   'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+    failed:    'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+    skipped:   'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400',
+  }
+
+  const lastRun = recentRuns[0]
+
   return (
     <div className="space-y-6">
+      {/* Schedule & Run History */}
       <div>
-        <h3 className="text-xs font-bold text-gray-900 dark:text-white mb-3">Nightly Run Time</h3>
-        <div className="flex items-center gap-3">
-          <SettingSlider label="Hour (0–23)" value={val('nightly_run_hour')} min={0} max={23} step={1} format={v => `${v.toFixed(0).padStart(2, '0')}:00`} onChange={v => update('nightly_run_hour', v)} />
+        <h3 className="text-xs font-bold text-gray-900 dark:text-white mb-3">Schedule & Run History</h3>
+        <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] rounded p-4 space-y-3 mb-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <div>
+              <p className="text-gray-500 dark:text-gray-400 mb-1">Schedule</p>
+              <p className="font-semibold text-gray-900 dark:text-white">{schedulerStatus?.schedule || 'Loading...'}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 dark:text-gray-400 mb-1">Next run</p>
+              <p className="font-semibold text-gray-900 dark:text-white">{fmtDate(schedulerStatus?.next_run_iso)}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 dark:text-gray-400 mb-1">Last run</p>
+              <p className="font-semibold text-gray-900 dark:text-white">{fmtDate(lastRun?.started_at)}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 dark:text-gray-400 mb-1">Duration</p>
+              <p className="font-semibold text-gray-900 dark:text-white">{fmtDuration(lastRun?.duration_seconds)}</p>
+            </div>
+          </div>
+          {lastRun && (
+            <div className="text-[11px] text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-[#1a1a1a]">
+              Last run: {lastRun.total_posts_found || 0} posts found,
+              {' '}{lastRun.total_comments_pulled || 0} comments pulled,
+              {' '}{lastRun.products_processed || 0} products processed,
+              {' '}{lastRun.total_dedup_skips || 0} dedup skips
+            </div>
+          )}
+          <div className="flex items-center gap-2 pt-2">
+            <button onClick={() => triggerRun(false)} className="px-3 py-1.5 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700">
+              Run Now (Weekly)
+            </button>
+            <button onClick={() => triggerRun(true)} className="px-3 py-1.5 border border-amber-500 text-amber-600 dark:text-amber-400 text-xs rounded hover:bg-amber-50 dark:hover:bg-amber-900/10">
+              Run Backfill (365 days)
+            </button>
+          </div>
         </div>
+
+        {/* Recent runs table */}
+        {recentRuns.length > 0 && (
+          <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-[#1a1a1a] rounded overflow-x-auto">
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-[#1a1a1a] text-gray-500">
+                  <th className="text-left py-2 px-3 font-medium">Started</th>
+                  <th className="text-left py-2 px-3 font-medium">Type</th>
+                  <th className="text-left py-2 px-3 font-medium">Status</th>
+                  <th className="text-right py-2 px-3 font-medium">Duration</th>
+                  <th className="text-right py-2 px-3 font-medium">Products</th>
+                  <th className="text-right py-2 px-3 font-medium">Records</th>
+                  <th className="text-right py-2 px-3 font-medium">Dedup Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentRuns.map(r => {
+                  const newRecords = r.total_new_records ?? 0
+                  const skips = r.total_dedup_skips ?? 0
+                  const total = newRecords + skips
+                  const skipPct = total > 0 ? Math.round((skips / total) * 100) : 0
+                  return (
+                    <tr key={r.id} className="border-b border-gray-100 dark:border-[#1a1a1a]/50">
+                      <td className="py-1.5 px-3 text-gray-700 dark:text-gray-300">{fmtDate(r.started_at)}</td>
+                      <td className="py-1.5 px-3 text-gray-600 dark:text-gray-400 capitalize">{r.run_type || 'weekly'}</td>
+                      <td className="py-1.5 px-3">
+                        <span className={`px-1.5 py-0.5 rounded font-bold uppercase ${STATUS_BADGE[r.status] || STATUS_BADGE.skipped}`}>{r.status}</span>
+                      </td>
+                      <td className="py-1.5 px-3 text-right text-gray-600 dark:text-gray-400 tabular-nums">{fmtDuration(r.duration_seconds)}</td>
+                      <td className="py-1.5 px-3 text-right text-gray-600 dark:text-gray-400 tabular-nums">{r.products_processed ?? '—'}</td>
+                      <td className="py-1.5 px-3 text-right tabular-nums">
+                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{newRecords.toLocaleString()} new</span>
+                        <span className="text-gray-400 dark:text-gray-500 text-[10px]"> / {skips.toLocaleString()} skipped</span>
+                      </td>
+                      <td className="py-1.5 px-3 text-right text-gray-600 dark:text-gray-400 tabular-nums">{total > 0 ? `${skipPct}%` : '—'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
       <div>
         <h3 className="text-xs font-bold text-gray-900 dark:text-white mb-3">Budget & Limits</h3>
