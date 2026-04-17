@@ -29,13 +29,31 @@ function platformBadge(platform) {
 }
 
 // Column labels per platform
+// engagement = primary metric column (views for TikTok, upvotes for Reddit)
+// likes = secondary metric column (only shown for TikTok + Instagram)
 function colLabels(p) {
   switch (p) {
-    case 'reddit':    return { title: 'Title',   source: 'Subreddit', engagement: 'Upvotes', replies: 'Comments' }
-    case 'tiktok':    return { title: 'Caption',  source: 'Account',   engagement: 'Views',   replies: 'Comments' }
-    case 'instagram': return { title: 'Caption',  source: 'Account',   engagement: 'Likes',   replies: 'Comments' }
-    case 'amazon':    return { title: 'Product',  source: 'Brand',     engagement: 'Reviews', replies: 'Helpful' }
-    default:          return { title: 'Title',    source: 'Source',    engagement: 'Engagement', replies: 'Replies' }
+    case 'reddit':    return { title: 'Title',   source: 'Subreddit', engagement: 'Upvotes', likes: null,    replies: 'Comments' }
+    case 'tiktok':    return { title: 'Caption',  source: 'Account',   engagement: 'Views',   likes: 'Likes', replies: 'Comments' }
+    case 'instagram': return { title: 'Caption',  source: 'Account',   engagement: 'Likes',   likes: null,    replies: 'Comments' }
+    case 'amazon':    return { title: 'Product',  source: 'Brand',     engagement: 'Reviews', likes: null,    replies: 'Helpful' }
+    default:          return { title: 'Title',    source: 'Source',    engagement: 'Engagement', likes: null, replies: 'Replies' }
+  }
+}
+
+// Get the primary engagement value for a post based on platform
+function postEngagement(post, platform) {
+  switch (platform) {
+    case 'tiktok': return post.views || 0       // Views (playCount) as primary
+    default:       return post.upvotes || 0     // Upvotes/likes as primary
+  }
+}
+
+// Get the secondary likes value (only for platforms that show both)
+function postLikes(post, platform) {
+  switch (platform) {
+    case 'tiktok': return post.upvotes || 0     // Likes (diggCount) as secondary
+    default:       return null
   }
 }
 
@@ -264,7 +282,8 @@ function PostsTab() {
                 <th onClick={() => toggleSort('post_title')} className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">{labels.title}<SortIcon col="post_title" /></th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">Product</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500 dark:text-gray-400">{labels.source}</th>
-                <th onClick={() => toggleSort('upvotes')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">{labels.engagement}<SortIcon col="upvotes" /></th>
+                <th onClick={() => toggleSort(selectedPlatform === 'tiktok' ? 'views' : 'upvotes')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">{labels.engagement}<SortIcon col={selectedPlatform === 'tiktok' ? 'views' : 'upvotes'} /></th>
+                {labels.likes && <th onClick={() => toggleSort('upvotes')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">{labels.likes}<SortIcon col="upvotes" /></th>}
                 <th onClick={() => toggleSort('comment_count')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">{labels.replies}<SortIcon col="comment_count" /></th>
                 <th onClick={() => toggleSort('intent_level')} className="text-center px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Intent<SortIcon col="intent_level" /></th>
                 <th onClick={() => toggleSort('sentiment_score')} className="text-right px-4 py-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700">Sentiment<SortIcon col="sentiment_score" /></th>
@@ -342,7 +361,8 @@ function PostRowWithComments({ post, isExpanded, postComments, loadingComments, 
         <td className="px-4 py-3">
           <span className={`px-2 py-0.5 text-xs rounded-full ${badge}`}>{sourceText}</span>
         </td>
-        <td className="px-4 py-3 text-right tabular-nums text-gray-600 dark:text-gray-400">{(post.upvotes || 0).toLocaleString()}</td>
+        <td className="px-4 py-3 text-right tabular-nums text-gray-600 dark:text-gray-400">{postEngagement(post, plat).toLocaleString()}</td>
+        {colLabels(selectedPlatform).likes && <td className="px-4 py-3 text-right tabular-nums text-gray-600 dark:text-gray-400">{postLikes(post, plat)?.toLocaleString() ?? '—'}</td>}
         <td className="px-4 py-3 text-right tabular-nums text-gray-600 dark:text-gray-400">{post.comment_count || 0}</td>
         <td className="px-4 py-3 text-center">
           <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${INTENT_COLORS[intentLvl]}`}>L{intentLvl}</span>
@@ -360,7 +380,7 @@ function PostRowWithComments({ post, isExpanded, postComments, loadingComments, 
 
       {isExpanded && (
         <tr>
-          <td colSpan={10} className="px-0 py-0">
+          <td colSpan={12} className="px-0 py-0">
             <div className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
               {/* Post body */}
               {post.post_body && (

@@ -151,7 +151,7 @@ function PipelineSection() {
     } catch {}
     // Load recent pipeline runs
     const { data: runs } = await supabase.from('pipeline_runs')
-      .select('*').order('started_at', { ascending: false }).limit(10)
+      .select('*').eq('phase', 'full_pipeline').order('started_at', { ascending: false }).limit(10)
     setRecentRuns(runs || [])
   }, [])
   useEffect(() => { load() }, [load])
